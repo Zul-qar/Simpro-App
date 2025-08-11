@@ -2,7 +2,6 @@ const express = require('express');
 const mongoose = require('mongoose');
 const helmet = require('helmet');
 const compression = require('compression');
-require('dotenv').config();
 
 const userRoutes = require('./routes/userRoutes');
 const prebuildRoutes = require('./routes/prebuildRoutes');
