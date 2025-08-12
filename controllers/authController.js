@@ -1,9 +1,9 @@
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 
-const User = require('../models/user');
+import User from '../models/user.js';
 
-exports.signup = (req, res, next) => {
+const signup = (req, res, next) => {
   const email = req.body.email;
   const password = req.body.password;
 
@@ -21,7 +21,7 @@ exports.signup = (req, res, next) => {
     });
 };
 
-exports.login = (req, res, next) => {
+const login = (req, res, next) => {
   const email = req.body.email;
   const password = req.body.password;
   let loadedUser;
@@ -46,3 +46,5 @@ exports.login = (req, res, next) => {
     })
     .catch(err => next(err));
 };
+
+export { signup, login };

@@ -1,4 +1,4 @@
-exports.getPrebuilds = async (req, res, next) => {
+const getPrebuilds = async (req, res, next) => {
   const companyID = req.query.companyID;
   const pageSize = 250;
   let page = 1;
@@ -40,7 +40,7 @@ exports.getPrebuilds = async (req, res, next) => {
   res.status(200).json({ message: 'Prebuilds List', prebuilds: allPrebuilds });
 };
 
-exports.getPrebuildCatalogs = async (req, res, next) => {
+const getPrebuildCatalogs = async (req, res, next) => {
   const companyID = req.query.companyID;
   const prebuildID = req.query.prebuildID;
   const pageSize = 250;
@@ -75,3 +75,5 @@ exports.getPrebuildCatalogs = async (req, res, next) => {
   }
   res.status(200).json({ message: 'Prebuilds List', catalogs: allCatalogs });
 };
+
+export { getPrebuilds, getPrebuildCatalogs };

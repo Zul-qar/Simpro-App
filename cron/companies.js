@@ -1,6 +1,6 @@
-const cron = require('node-cron');
+import cron from 'node-cron';
 
-const Company = require('../models/company');
+import Company from '../models/company.js';
 
 function fetchCompanies() {
   cron.schedule('0 0 1 * *', async () => {
@@ -38,4 +38,4 @@ async function clearCompanies() {
   }
 }
 
-module.exports = fetchCompanies;
+export default fetchCompanies;

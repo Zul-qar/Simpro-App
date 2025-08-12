@@ -1,9 +1,9 @@
-const express = require('express');
+import express from 'express';
 
-const jobController = require('../controllers/jobController');
+import * as jobController from '../controllers/jobController.js';
 
 const router = express.Router();
 
 router.get('/alljobs', jobController.getJobs)
 
-module.exports = router;
+export default router;

@@ -4,7 +4,7 @@
   "description": "An API to archive catalogues from Simpro CRM",
   "license": "ISC",
   "author": "Sheifu33",
-  "type": "commonjs",
+  "type": "module",
   "main": "app.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",

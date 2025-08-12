@@ -1,6 +1,6 @@
-const Company = require('../models/company');
+import Company from '../models/company.js';
 
-exports.getCompanies = async (req, res, next) => {
+const getCompanies = async (req, res, next) => {
   try {
     const companies = await Company.find();
     res.status(200).json({ message: 'Companies List', companies });
@@ -8,3 +8,5 @@ exports.getCompanies = async (req, res, next) => {
     next(err);
   }
 };
+
+export { getCompanies };

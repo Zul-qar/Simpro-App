@@ -1,18 +1,19 @@
-const express = require('express');
-const mongoose = require('mongoose');
-const helmet = require('helmet');
-const compression = require('compression');
+import express from 'express';
+import mongoose from 'mongoose';
+import helmet from 'helmet';
+import compression from 'compression';
+import dotenv from 'dotenv';
 
 if (!process.env.NODE_ENV || process.env.NODE_ENV === 'development') {
-  require('dotenv').config();
+  dotenv.config();
 }
 
-const userRoutes = require('./routes/userRoutes');
-const prebuildRoutes = require('./routes/prebuildRoutes');
-const catalogRoutes = require('./routes/catalogRoutes');
-const quoteRoutes = require('./routes/quoteRoutes');
-const jobRoutes = require('./routes/jobRoutes');
-const startAllCrons = require('./cron/index');
+import userRoutes from './routes/userRoutes.js';
+import prebuildRoutes from './routes/prebuildRoutes.js';
+import catalogRoutes from './routes/catalogRoutes.js';
+import quoteRoutes from './routes/quoteRoutes.js';
+import jobRoutes from './routes/jobRoutes.js';
+import startAllCrons from './cron/index.js';
 
 const app = express();
 

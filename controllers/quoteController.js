@@ -1,7 +1,7 @@
-const Company = require('../models/company');
-const Quote = require('../models/quote');
+import Company from '../models/company.js';
+import Quote from '../models/quote.js';
 
-exports.getQuotes = async (req, res, next) => {
+const getQuotes = async (req, res, next) => {
   const companyID = req.query.companyID;
   try {
     const companyDoc = await Company.findOne({ ID: companyID });
@@ -11,3 +11,5 @@ exports.getQuotes = async (req, res, next) => {
     next(err);
   }
 };
+
+export { getQuotes };

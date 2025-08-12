@@ -1,9 +1,9 @@
-const cron = require('node-cron');
-const mongoose = require('mongoose');
-const pLimit = async () => (await import('p-limit')).default;
+import cron from 'node-cron';
+import mongoose from 'mongoose';
+import pLimit from 'p-limit';
 
-const Company = require('../models/company');
-const Job = require('../models/job');
+import Company from '../models/company.js';
+import Job from '../models/job.js';
 
 function fetchJobs() {
   cron.schedule('0 0 1 * *', async () => {
@@ -121,4 +121,4 @@ function fetchAndMergeJobDetails() {
   });
 }
 
-module.exports = { fetchJobs, fetchAndMergeJobDetails };
+export { fetchJobs, fetchAndMergeJobDetails };

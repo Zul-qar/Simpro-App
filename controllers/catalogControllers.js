@@ -1,4 +1,4 @@
-exports.getCatalogs = async (req, res, next) => {
+const getCatalogs = async (req, res, next) => {
   const companyID = req.query.companyID;
   const page = req.query.page;
   const pageSize = 250;
@@ -27,18 +27,15 @@ exports.getCatalogs = async (req, res, next) => {
   }
 };
 
-exports.getCatalogGroups = async (req, res, next) => {
+const getCatalogGroups = async (req, res, next) => {
   const companyID = req.query.companyID;
   try {
-    const response = await fetch(
-      `${process.env.SIMPRO_API_URL}/companies/${companyID}/catalogGroups/`,
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: 'Bearer ' + process.env.SIMPRO_API_KEY
-        }
+    const response = await fetch(`${process.env.SIMPRO_API_URL}/companies/${companyID}/catalogGroups/`, {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer ' + process.env.SIMPRO_API_KEY
       }
-    );
+    });
 
     if (!response.ok) {
       const error = new Error('Request Unsuccessful');
@@ -52,3 +49,5 @@ exports.getCatalogGroups = async (req, res, next) => {
     return next(err);
   }
 };
+
+export { getCatalogs, getCatalogGroups };

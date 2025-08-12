@@ -1,7 +1,7 @@
-const cron = require('node-cron');
+import cron from 'node-cron';
 
-const Company = require('../models/company');
-const Quote = require('../models/quote');
+import Company from '../models/company.js';
+import Quote from '../models/quote.js';
 
 function fetchQuotes() {
   cron.schedule('0 0 1 * *', async () => {
@@ -67,7 +67,7 @@ function fetchAndMergeQuoteDetails() {
       const quotesArr = await Quote.find().populate('company');
 
       for (const quoteItem of quotesArr) {
-        console.log(`Fetching Quote detail for Company: ${quoteItem.company.ID} and Quote: ${quoteItem.ID} `)
+        console.log(`Fetching Quote detail for Company: ${quoteItem.company.ID} and Quote: ${quoteItem.ID} `);
         const response = await fetch(`${process.env.SIMPRO_API_URL}/companies/${quoteItem.company.ID}/quotes/${quoteItem.ID}`, {
           headers: {
             'Content-Type': 'application/json',
@@ -92,7 +92,4 @@ function fetchAndMergeQuoteDetails() {
   });
 }
 
-module.exports = {
-  fetchQuotes,
-  fetchAndMergeQuoteDetails
-};
+export { fetchQuotes, fetchAndMergeQuoteDetails };

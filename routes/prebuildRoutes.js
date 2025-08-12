@@ -1,10 +1,9 @@
-const express = require('express');
-
-const prebuildController = require('../controllers/prebuildController');
+import express from 'express';
+import * as prebuildController from '../controllers/prebuildController.js';
 
 const router = express.Router();
 
 router.get('/allprebuilds', prebuildController.getPrebuilds);
 router.get('/prebuildcatalogs', prebuildController.getPrebuildCatalogs)
 
-module.exports = router;
+export default router;

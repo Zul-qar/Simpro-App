@@ -1,13 +1,13 @@
-const fetchCompanies = require('./companies');
-const jobs = require('./jobs');
-const quotes = require('./quotes');
+import fetchCompanies from './companies.js';
+import { fetchJobs, fetchAndMergeJobDetails } from './jobs.js';
+import { fetchQuotes, fetchAndMergeQuoteDetails } from './quotes.js';
 
-function startAllCrons () {
+function startAllCrons() {
   fetchCompanies();
-  jobs.fetchJobs();
-  jobs.fetchAndMergeJobDetails();
-  quotes.fetchQuotes();
-  quotes.fetchAndMergeQuoteDetails();
+  fetchJobs();
+  fetchAndMergeJobDetails();
+  fetchQuotes();
+  fetchAndMergeQuoteDetails();
 }
 
-module.exports = startAllCrons;
+export default startAllCrons;
