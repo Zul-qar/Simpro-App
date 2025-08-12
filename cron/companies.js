@@ -3,7 +3,7 @@ const cron = require('node-cron');
 const Company = require('../models/company');
 
 function fetchCompanies() {
-  cron.schedule('0 0 * * *', async () => {
+  cron.schedule('0 0 1 * *', async () => {
     clearCompanies();
     console.log('Start: Fetching all companies from Simpro API');
     try {

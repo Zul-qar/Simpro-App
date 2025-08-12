@@ -6,7 +6,7 @@ const Company = require('../models/company');
 const Job = require('../models/job');
 
 function fetchJobs() {
-  cron.schedule('0 0 * * *', async () => {
+  cron.schedule('0 0 1 * *', async () => {
     clearJobs();
     console.log('Start: Fetcing all Jobs from Simpro API ');
     try {
@@ -65,7 +65,7 @@ async function clearJobs() {
 }
 
 function fetchAndMergeJobDetails() {
-  cron.schedule('0 0 * * *', async () => {
+  cron.schedule('0 0 1 * *', async () => {
     console.log('Start: Fetching Job details and merging with Jobs');
     try {
       const jobsArr = await Job.find().populate('company');

@@ -4,7 +4,7 @@ const Company = require('../models/company');
 const Quote = require('../models/quote');
 
 function fetchQuotes() {
-  cron.schedule('0 0 * * *', async () => {
+  cron.schedule('0 0 1 * *', async () => {
     clearQuotes();
     console.log('Start: Fetcing all Quotes from Simpro API ');
     try {
@@ -61,7 +61,7 @@ async function clearQuotes() {
 }
 
 function fetchAndMergeQuoteDetails() {
-  cron.schedule('0 0 * * *', async () => {
+  cron.schedule('0 0 1 * *', async () => {
     console.log('Start: Fetching Quote details and merging with Quotes');
     try {
       const quotesArr = await Quote.find().populate('company');
