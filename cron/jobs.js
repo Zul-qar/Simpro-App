@@ -1,6 +1,6 @@
 const cron = require('node-cron');
 const mongoose = require('mongoose');
-const pLimit = require('p-limit').default;
+const pLimit = async () => (await import('p-limit')).default;
 
 const Company = require('../models/company');
 const Job = require('../models/job');
