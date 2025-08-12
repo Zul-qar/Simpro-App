@@ -76,6 +76,7 @@ function fetchAndMergeJobDetails() {
         jobsArr.map(jobItem =>
           limit(async () => {
             try {
+              console.log(`Fetching Job detail for Company: ${jobItem.company.ID} and Job: ${jobItem.ID} `);
               const response = await fetch(`${process.env.SIMPRO_API_URL}/companies/${jobItem.company.ID}/jobs/${jobItem.ID}`, {
                 headers: {
                   'Content-Type': 'application/json',
