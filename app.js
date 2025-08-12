@@ -2,6 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const helmet = require('helmet');
 const compression = require('compression');
+require('dotenv').config();
 
 const userRoutes = require('./routes/userRoutes');
 const prebuildRoutes = require('./routes/prebuildRoutes');
@@ -42,7 +43,7 @@ app.use((error, req, res, next) => {
 mongoose
   .connect(process.env.MONGODB_URI)
   .then(result => {
-    app.listen(process.env.PORT || 3000);
+    app.listen(process.env.PORT);
   })
   .catch(err => {
     console.log(err);
