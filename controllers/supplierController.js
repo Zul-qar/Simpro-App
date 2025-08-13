@@ -4,6 +4,13 @@ import VendorReceipt from '../models/vendorReceipt.js';
 
 const getVendorOrders = async (req, res, next) => {
   const companyID = req.query.companyID;
+
+  if (!companyID) {
+    const error = new Error('Company ID is required');
+    error.statusCode = 400;
+    throw error;
+  }
+
   try {
     const companyDoc = await Company.findOne({ ID: companyID });
     const vendorOrdersArr = await VendorOrder.find({ company: companyDoc._id }).select('-__v -company -_id');
@@ -16,6 +23,13 @@ const getVendorOrders = async (req, res, next) => {
 const getVendorReceipts = async (req, res, next) => {
   const companyID = req.query.companyID;
   const vendorOrderID = req.query.vendorOrderID;
+
+  if (!companyID || !vendorOrderID) {
+    const error = new Error('Company ID and Vendor Order ID are required');
+    error.statusCode = 400;
+    throw error;
+  }
+
   try {
     const companyDoc = await Company.findOne({ ID: companyID });
     const vendorOrderDoc = await VendorOrder.findOne({ ID: vendorOrderID });
