@@ -1,10 +1,7 @@
-import cron from 'node-cron';
-
 import Company from '../models/company.js';
 import Quote from '../models/quote.js';
 
-function fetchQuotes() {
-  cron.schedule('0 0 1 * *', async () => {
+async function fetchQuotes() {
     clearQuotes();
     console.log('Start: Fetcing all Quotes from Simpro API ');
     try {
@@ -53,15 +50,13 @@ function fetchQuotes() {
       console.log(err);
     }
     console.log('End: Fetcing all Quotes from Simpro API ');
-  });
 }
 
 async function clearQuotes() {
   await Quote.deleteMany();
 }
 
-function fetchAndMergeQuoteDetails() {
-  cron.schedule('0 0 1 * *', async () => {
+async function fetchAndMergeQuoteDetails() {
     console.log('Start: Fetching Quote details and merging with Quotes');
     try {
       const quotesArr = await Quote.find().populate('company');
@@ -89,7 +84,6 @@ function fetchAndMergeQuoteDetails() {
       console.log(err);
     }
     console.log('End: Fetching Quote details and merging with Quotes');
-  });
 }
 
 export { fetchQuotes, fetchAndMergeQuoteDetails };

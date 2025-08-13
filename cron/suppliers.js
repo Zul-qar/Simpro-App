@@ -1,12 +1,10 @@
-import cron from 'node-cron';
 import mongoose from 'mongoose';
 
 import Company from '../models/company.js';
 import VendorOrder from '../models/vendorOrder.js';
 import VendorReceipt from '../models/vendorReceipt.js';
 
-function fetchVendorOrders() {
-  cron.schedule('0 0 1 * *', async () => {
+async function fetchVendorOrders() {
     clearVendors();
     console.log('Start: Fetcing all Vendor Orders from Simpro API ');
     try {
@@ -55,15 +53,13 @@ function fetchVendorOrders() {
       console.log(err);
     }
     console.log('End: Fetcing all Vendor Orders from Simpro API ');
-  });
 }
 
 async function clearVendors() {
   await VendorOrder.deleteMany();
 }
 
-function fetchVendorReceipts() {
-  cron.schedule('0 0 1 * *', async () => {
+async function fetchVendorReceipts() {
     clearVendorReceipts();
     console.log('Start: Fetcing all Vendor Receipts from Simpro API ');
     try {
@@ -114,7 +110,6 @@ function fetchVendorReceipts() {
       console.log(err);
     }
     console.log('End: Fetcing all Vendor Receipts from Simpro API ');
-  });
 }
 
 async function clearVendorReceipts() {

@@ -1,11 +1,9 @@
-import cron from 'node-cron';
 import mongoose from 'mongoose';
 
 import Company from '../models/company.js';
 import Catalog from '../models/catalog.js';
 
-function fetchCatalogs() {
-  cron.schedule('0 0 1 * *', async () => {
+async function fetchCatalogs() {
     console.log('Start: Fetcing all Catalogs from Simpro API ');
     try {
       const companiesArr = await Company.find();
@@ -52,7 +50,6 @@ function fetchCatalogs() {
       console.log(err);
     }
     console.log('End: Fetcing all Catalogs from Simpro API ');
-  });
 }
 
 export { fetchCatalogs };
