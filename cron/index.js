@@ -1,3 +1,5 @@
+import cron from 'node-cron';
+
 import fetchCompanies from './companies.js';
 import { fetchJobs, fetchAndMergeJobDetails } from './jobs.js';
 import { fetchQuotes, fetchAndMergeQuoteDetails } from './quotes.js';
