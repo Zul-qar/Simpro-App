@@ -81,7 +81,7 @@ function fetchAndMergeQuoteDetails() {
         }
 
         const quoteDetailItem = await response.json();
-        quoteItem['DateIssued'] = quoteDetailItem['DateIssued'];
+        quoteItem['DateIssued'] = new Date(quoteDetailItem['DateIssued']);
 
         await quoteItem.save();
       }

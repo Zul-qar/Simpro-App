@@ -17,7 +17,7 @@ const quoteSchema = new Schema({
     IncTax: Number
   },
   IsClosed: Boolean,
-  DateIssued: String,
+  DateIssued: Date,
   company: {
     type: Schema.Types.ObjectId,
     ref: 'Company',
