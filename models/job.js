@@ -16,7 +16,7 @@ const jobSchema = new Schema({
     Tax: Number,
     IncTax: Number
   },
-  DateIssued: String,
+  DateIssued: Date,
   Stage: String,
   company: {
     type: Schema.Types.ObjectId,

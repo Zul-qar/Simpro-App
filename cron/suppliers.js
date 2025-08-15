@@ -2,11 +2,12 @@ import mongoose from 'mongoose';
 
 import Company from '../models/company.js';
 import VendorOrder from '../models/vendorOrder.js';
+import VendorOrderCatalog from '../models/vendorOrderCatalog.js';
 import VendorReceipt from '../models/vendorReceipt.js';
 import vendorReceiptCatalog from '../models/vendorReceiptCatalog.js';
 
 async function fetchVendorOrders() {
-  await clearVendors();
+  await clearVendorOrders();
   try {
     console.log('Start: Fetcing all Vendor Orders from Simpro API ');
     const companiesArr = await Company.find();
@@ -56,11 +57,76 @@ async function fetchVendorOrders() {
   }
 }
 
-async function clearVendors() {
+async function clearVendorOrders() {
   try {
     await VendorOrder.deleteMany();
   } catch (err) {
     console.log('Error clearing Vendor Orders:', err);
+  }
+}
+
+async function fetchVendorOrderCatalogs() {
+  await clearVendorOrderCatalogs();
+  try {
+    console.log('Start: Fetcing all Vendor Order Catalogs from Simpro API ');
+    const companiesArr = await Company.find();
+    for (const companyItem of companiesArr) {
+      const vendorOrdersArrForCompany = await VendorOrder.find({ company: companyItem._id });
+      for (const vendorOrderItemForCompany of vendorOrdersArrForCompany) {
+        const pageSize = 250;
+        let page = 1;
+        while (true) {
+          console.log(
+            `Fetching Vendor Order Catalogs for Company ${companyItem.ID}, Vendor Order ${vendorOrderItemForCompany.ID}`
+          );
+          const response = await fetch(
+            `${process.env.SIMPRO_API_URL}/companies/${companyItem.ID}/vendorOrders/${vendorOrderItemForCompany.ID}/catalogs/?page=${page}&pageSize=${pageSize}`,
+            {
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: 'Bearer ' + process.env.SIMPRO_API_KEY
+              }
+            }
+          );
+
+          if (!response.ok) {
+            throw new Error('Request Unsuccessful. Status Code: ' + response.status);
+          }
+
+          const vendorOrderCatalogsArr = await response.json();
+
+          await VendorOrderCatalog.insertMany(
+            vendorOrderCatalogsArr.map(vendorOrderCatalogItem => ({
+              Catalog: {
+                ID: vendorOrderCatalogItem.Catalog.ID,
+                PartNo: vendorOrderCatalogItem.Catalog.PartNo,
+                Name: vendorOrderCatalogItem.Catalog.Name
+              },
+              DueDate: vendorOrderCatalogItem.DueDate ? new Date(vendorOrderCatalogItem.DueDate) : null,
+              Notes: vendorOrderCatalogItem.Notes,
+              Price: vendorOrderCatalogItem.Price,
+              DisplayOrder: vendorOrderCatalogItem.DisplayOrder,
+              vendorOrder: new mongoose.Types.ObjectId(vendorOrderItemForCompany._id),
+              company: new mongoose.Types.ObjectId(companyItem._id)
+            }))
+          );
+
+          if (vendorOrderCatalogsArr.length < pageSize) break;
+
+          page++;
+        }
+      }
+    }
+    console.log('End: Fetcing all Vendor Order Catalogs from Simpro API ');
+  } catch (err) {
+    console.log(err);
+  }
+}
+
+async function clearVendorOrderCatalogs() {
+  try {
+  } catch (err) {
+    console.log('Error clearing Vendor Order Catalogs:', err);
   }
 }
 
@@ -190,4 +256,4 @@ async function clearVendorReceiptCatalogs() {
   }
 }
 
-export { fetchVendorOrders, fetchVendorReceipts, fetchVendorReceiptCatalogs };
+export { fetchVendorOrders, fetchVendorOrderCatalogs, fetchVendorReceipts, fetchVendorReceiptCatalogs };

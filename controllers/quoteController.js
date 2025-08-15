@@ -23,7 +23,9 @@ const getQuotes = async (req, res, next) => {
 
   try {
     const companyDoc = await Company.findOne({ ID: companyID });
-    const quotesArr = await Quote.find({ company: companyDoc._id, DateIssued: {$gte: start, $lte: end} }).select('-_id -__v -company');
+    const quotesArr = await Quote.find({ company: companyDoc._id, DateIssued: { $gte: start, $lte: end } }).select(
+      '-_id -__v -company'
+    );
     res.status(200).json({ message: 'Quotes List', quotes: quotesArr });
   } catch (err) {
     next(err);
