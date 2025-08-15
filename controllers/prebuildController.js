@@ -1,79 +1,58 @@
+import Company from '../models/company.js';
+import Prebuild from '../models/prebuild.js';
+import PrebuildCatalog from '../models/prebuildCatalog.js';
+
 const getPrebuilds = async (req, res, next) => {
   const companyID = req.query.companyID;
-  const pageSize = 250;
-  let page = 1;
-  let allPrebuilds = [];
 
-  while (true) {
-    try {
-      const response = await fetch(
-        `${process.env.SIMPRO_API_URL}/companies/${companyID}/prebuilds/?page=${page}&pageSize=${pageSize}`,
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: 'Bearer ' + process.env.SIMPRO_API_KEY
-          }
-        }
-      );
-
-      if (!response.ok) {
-        const error = new Error('Request unsuccessful');
-        error.statusCode = response.status;
-        throw error;
-      }
-      const result = await response.json();
-      // Filtering prebuilds items that are archived
-      const filteredPrebuilds = result.filter(prebuildItem => {
-        return prebuildItem['Archived'] === false;
-      });
-      allPrebuilds = allPrebuilds.concat(filteredPrebuilds);
-
-      if (result.length < pageSize) {
-        break;
-      }
-
-      page++;
-    } catch (err) {
-      return next(err);
-    }
+  if (!companyID) {
+    const error = new Error('Company ID is required');
+    error.statusCode = 400;
+    throw error;
   }
-  res.status(200).json({ message: 'Prebuilds List', prebuilds: allPrebuilds });
+
+  try {
+    const companyDoc = await Company.findOne({ ID: companyID });
+    if (!companyDoc) {
+      const error = new Error('Company not found');
+      error.statusCode = 404;
+      throw error;
+    }
+    const prebuildsArr = await Prebuild.find({ company: companyDoc._id });
+    res.status(200).json({ message: 'Prebuilds List', prebuilds: prebuildsArr });
+  } catch (err) {
+    next(err);
+  }
 };
 
 const getPrebuildCatalogs = async (req, res, next) => {
   const companyID = req.query.companyID;
   const prebuildID = req.query.prebuildID;
-  const pageSize = 250;
-  let page = 1;
-  let allCatalogs = [];
 
-  while (true) {
-    try {
-      const response = await fetch(
-        `${process.env.SIMPRO_API_URL}/companies/${companyID}/prebuilds/${prebuildID}/catalogs/?page=${page}&pageSize=${pageSize}`,
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: 'Bearer ' + process.env.SIMPRO_API_KEY
-          }
-        }
-      );
-
-      if (!response.ok) {
-        const error = new Error('Request unsuccessful');
-        error.statusCode = response.status;
-        throw error;
-      }
-
-      let result = await response.json();
-      allCatalogs = allCatalogs.concat(result);
-      if (result.length < pageSize) break;
-      page++;
-    } catch (err) {
-      return next(err);
-    }
+  if (!companyID || !prebuildID) {
+    const error = new Error('Company ID and Prebuild ID are required');
+    error.statusCode = 400;
+    throw error;
   }
-  res.status(200).json({ message: 'Prebuilds List', catalogs: allCatalogs });
+
+  try {
+    const companyDoc = await Company.findOne({ ID: companyID });
+    if (!companyDoc) {
+      const error = new Error('Company not found');
+      error.statusCode = 404;
+      throw error;
+    }
+    const prebuildDoc = await Prebuild.findOne({ ID: prebuildID, company: companyDoc._id });
+    if (!prebuildDoc) {
+      const error = new Error('Prebuild not found');
+      error.statusCode = 404;
+      throw error;
+    }
+    const prebuildCatalogsArr = await PrebuildCatalog.find({ prebuild: prebuildDoc._id, company: companyDoc._id });
+    res.status(200).json({ message: 'Prebuild Catalog List', catalogs: prebuildCatalogsArr });
+  } catch (err) {
+    next(err);
+  }
 };
 
 export { getPrebuilds, getPrebuildCatalogs };
