@@ -28,7 +28,7 @@ const getVendorReceipts = async (req, res, next) => {
     const error = new Error('Company ID and Vendor Order ID are required');
     error.statusCode = 400;
     throw error;
-  }
+  } 
 
   try {
     const companyDoc = await Company.findOne({ ID: companyID });
