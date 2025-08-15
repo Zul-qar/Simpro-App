@@ -33,7 +33,7 @@ const getVendorReceipts = async (req, res, next) => {
   try {
     const companyDoc = await Company.findOne({ ID: companyID });
     const vendorOrderDoc = await VendorOrder.findOne({ ID: vendorOrderID });
-    const vendorReceiptsArr = await VendorReceipt.find({ company: companyDoc._id, vendorOrder: vendorOrderDoc._id });
+    const vendorReceiptsArr = await VendorReceipt.find({ company: companyDoc._id, vendorOrder: vendorOrderDoc._id }).select('-__v -company -_id -vendorOrder');
     res.status(200).json({ message: 'Vendor Receipts List', vendorReceipts: vendorReceiptsArr });
   } catch (err) {
     next(err);
