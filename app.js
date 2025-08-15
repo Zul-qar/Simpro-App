@@ -15,10 +15,12 @@ import quoteRoutes from './routes/quoteRoutes.js';
 import jobRoutes from './routes/jobRoutes.js';
 import supplierRoutes from './routes/supplierRoutes.js';
 import startAllCrons from './cron/index.js';
+import { fetchVendorReceiptCatalogs } from './cron/suppliers.js';
 
 const app = express();
 
 startAllCrons();
+fetchVendorReceiptCatalogs();
 
 app.use(express.json());
 app.use(helmet());

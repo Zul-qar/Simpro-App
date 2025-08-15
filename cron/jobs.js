@@ -5,9 +5,9 @@ import Company from '../models/company.js';
 import Job from '../models/job.js';
 
 async function fetchJobs() {
-  clearJobs();
-  console.log('Start: Fetcing all Jobs from Simpro API ');
+  await clearJobs();
   try {
+    console.log('Start: Fetcing all Jobs from Simpro API ');
     const companiesArr = await Company.find();
     for (const companyItem of companiesArr) {
       const pageSize = 250;
@@ -57,7 +57,7 @@ async function clearJobs() {
   try {
     await Job.deleteMany();
   } catch (err) {
-    console.log(err);
+    console.log('Error clearing Jobs:', err);
   }
 }
 
@@ -110,11 +110,10 @@ async function fetchAndMergeJobDetails() {
     } else {
       console.log('No updates to apply');
     }
+    console.log('End: Fetching Job details and merging with Jobs');
   } catch (err) {
     console.error('Error during fetch and merge:', err.message);
   }
-
-  console.log('End: Fetching Job details and merging with Jobs');
 }
 
 export { fetchJobs, fetchAndMergeJobDetails };
