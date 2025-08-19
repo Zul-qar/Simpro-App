@@ -75,6 +75,9 @@ async function fetchVendorOrderCatalogs() {
       for (const vendorOrderItemForCompany of vendorOrdersArrForCompany) {
         const pageSize = 250;
         let page = 1;
+        if (vendorOrderItemForCompany.ID === 15937) {
+          continue; // Skip this vendor order for testing purposes
+        }
         while (true) {
           console.log(
             `Fetching Vendor Order Catalogs for Company ${companyItem.ID}, Vendor Order ${vendorOrderItemForCompany.ID}`
