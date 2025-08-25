@@ -1,53 +1,29 @@
+import Company from "../models/company.js";
+import Catalog from "../models/catalog.js";
+
 const getCatalogs = async (req, res, next) => {
   const companyID = req.query.companyID;
-  const page = req.query.page;
-  const pageSize = 250;
+
+  if (!companyID) {
+    const error = new Error('companyID query parameter is required');
+    error.statusCode = 400;
+    return next(error);
+  }
 
   try {
-    const response = await fetch(
-      `${process.env.SIMPRO_API_URL}/companies/${companyID}/catalogs/?page=${page}&pageSize=${pageSize}`,
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: 'Bearer ' + process.env.SIMPRO_API_KEY
-        }
-      }
-    );
-
-    if (!response.ok) {
-      const error = new Error('Request Unsuccessful');
-      error.statusCode = response.status;
-      throw error;
+    const companyDoc = await Company.findOne({ ID: companyID });
+    
+    if (!companyDoc) {
+      const error = new Error('Company not found');
+      error.statusCode = 404;
+      return next(error);
     }
 
-    const result = await response.json();
-    res.status(200).json({ message: 'Catalog Items', catalogs: result });
+    const catalogsArr = await Catalog.find({ company: companyDoc._id });
+    res.status(200).json({message: 'Catalogs List', catalogs: catalogsArr });
   } catch (err) {
     return next(err);
   }
 };
 
-const getCatalogGroups = async (req, res, next) => {
-  const companyID = req.query.companyID;
-  try {
-    const response = await fetch(`${process.env.SIMPRO_API_URL}/companies/${companyID}/catalogGroups/`, {
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: 'Bearer ' + process.env.SIMPRO_API_KEY
-      }
-    });
-
-    if (!response.ok) {
-      const error = new Error('Request Unsuccessful');
-      error.statusCode = response.status;
-      throw error;
-    }
-
-    const result = await response.json();
-    res.status(200).json({ message: 'Catalog Groups', catalogsGroups: result });
-  } catch (err) {
-    return next(err);
-  }
-};
-
-export { getCatalogs, getCatalogGroups };
+export { getCatalogs };

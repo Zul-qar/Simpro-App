@@ -3,18 +3,21 @@ import mongoose from 'mongoose';
 const Schema = mongoose.Schema;
 
 const catalogSchema = new Schema({
-  ID: {
-    type: String,
-    required: true
-  },
+  ID: Number,
   PartNo: String,
   Name: String,
-  TradePrice: Number,
-  TradePriceEx: Number,
-  TradePriceInc: Number,
-  SplitPrice: Number,
-  SplitPriceEx: Number,
-  SplitePriceInc: Number,
+  Manufacturer: String,
+  Group: {
+    ID: Number,
+    Name: String,
+    ParentGroup: {
+      ID: Number,
+      Name: String
+    }
+  },
+  Notes: String,
+  DateModified: Date,
+  Archived: Boolean,
   company: {
     type: Schema.Types.ObjectId,
     ref: 'Company',
