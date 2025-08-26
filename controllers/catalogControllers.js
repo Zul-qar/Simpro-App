@@ -32,8 +32,7 @@ const getCatalogs = async (req, res, next) => {
 
     const catalogsArr = await Catalog.find({
       company: companyDoc._id,
-      DateModified: { $gte: start, $lte: end },
-      Archived: { $ne: true }
+      DateModified: { $gte: start, $lte: end }
     });
     res.status(200).json({ message: 'Catalogs List', catalogs: catalogsArr });
   } catch (err) {
@@ -65,7 +64,7 @@ const archiveCatalogs = async (req, res, next) => {
     const dd = String(today.getDate()).padStart(2, '0');
     const dateSuffix = `${yy}${mm}${dd}`;
 
-    const result = await Catalog.updateMany({ company: companyDoc._id, ID: { $in: catalogIDs } }, [
+    const result = await Catalog.updateMany({ company: companyDoc._id, ID: { $in: catalogIDs }, Archived: { $ne: true } }, [
       {
         $set: {
           Archived: true,
