@@ -5,21 +5,27 @@ import { fetchPrebuilds, fetchPrebuildCatalogs } from './prebuilds.js';
 import { fetchJobs, fetchAndMergeJobDetails } from './jobs.js';
 import { fetchQuotes, fetchAndMergeQuoteDetails } from './quotes.js';
 import { fetchVendorOrders, fetchVendorReceipts, fetchVendorOrderCatalogs, fetchVendorReceiptCatalogs } from './suppliers.js';
+import { fetchCatalogs, fetchCatalogGroups, fetchCatalogGroupDetails, fetchCatalogDetails, syncArchivedCatalogs } from './catalogs.js';
 
 async function runAllJobsSequentially() {
   console.log('---- Midnight cron started ----');
 
   await fetchCompanies();
-  await fetchPrebuilds();
-  await fetchPrebuildCatalogs();
-  await fetchJobs();
-  await fetchAndMergeJobDetails();
-  await fetchQuotes();
-  await fetchAndMergeQuoteDetails();
-  await fetchVendorOrders();
-  await fetchVendorReceipts();
-  await fetchVendorOrderCatalogs();
-  await fetchVendorReceiptCatalogs();
+  // await fetchPrebuilds();
+  // await fetchPrebuildCatalogs();
+  // await fetchJobs();
+  // await fetchAndMergeJobDetails();
+  // await fetchQuotes();
+  // await fetchAndMergeQuoteDetails();
+  // await fetchVendorOrders();
+  // await fetchVendorReceipts();
+  // await fetchVendorOrderCatalogs();
+  // await fetchVendorReceiptCatalogs();
+  // await fetchCatalogs();
+  // await fetchCatalogGroups(); 
+  // await fetchCatalogGroupDetails();
+  // await fetchCatalogDetails();  
+  await syncArchivedCatalogs();
 
   console.log('---- Midnight cron finished ----');
 }

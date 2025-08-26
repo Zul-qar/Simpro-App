@@ -63,15 +63,18 @@ async function fetchCatalogGroupDetails() {
     console.log('Start: Fetching Material Catalog Group Details from Simpro API');
     const companiesArr = await Company.find();
     for (const companyItem of companiesArr) {
-      const catalogGroupsArrForCompany = await CatalogGroup.find({company: companyItem._id});
+      const catalogGroupsArrForCompany = await CatalogGroup.find({ company: companyItem._id });
       for (const catalogGroupItemForCompany of catalogGroupsArrForCompany) {
         console.log(`Fetching details for Company ${companyItem.ID}, Catalog Group ${catalogGroupItemForCompany.ID}`);
-        const response = await fetch(`${process.env.SIMPRO_API_URL}/companies/${companyItem.ID}/catalogGroups/${catalogGroupItemForCompany.ID}`, {
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: 'Bearer ' + process.env.SIMPRO_API_KEY
+        const response = await fetch(
+          `${process.env.SIMPRO_API_URL}/companies/${companyItem.ID}/catalogGroups/${catalogGroupItemForCompany.ID}`,
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: 'Bearer ' + process.env.SIMPRO_API_KEY
+            }
           }
-        });
+        );
 
         if (!response.ok) {
           throw new Error('Request Unsuccessful. Status Code: ' + response.status);
@@ -79,8 +82,12 @@ async function fetchCatalogGroupDetails() {
 
         const catalogGroupDetails = await response.json();
         catalogGroupItemForCompany.DisplayOrder = catalogGroupDetails.DisplayOrder;
-        catalogGroupItemForCompany.DateCreated = catalogGroupDetails.DateCreated ? new Date(catalogGroupDetails.DateCreated) : null;
-        catalogGroupItemForCompany.DateModified = catalogGroupDetails.DateModified ? new Date(catalogGroupDetails.DateModified) : null;
+        catalogGroupItemForCompany.DateCreated = catalogGroupDetails.DateCreated
+          ? new Date(catalogGroupDetails.DateCreated)
+          : null;
+        catalogGroupItemForCompany.DateModified = catalogGroupDetails.DateModified
+          ? new Date(catalogGroupDetails.DateModified)
+          : null;
         catalogGroupItemForCompany.IsThirdPartyGroup = catalogGroupDetails.IsThirdPartyGroup;
         catalogGroupItemForCompany.Archived = catalogGroupDetails.Archived;
 
@@ -150,15 +157,18 @@ async function fetchCatalogDetails() {
     console.log('Start: Fetching Material Catalog Details from Simpro API');
     const companiesArr = await Company.find();
     for (const companyItem of companiesArr) {
-      const catalogsArrForCompany = await Catalog.find({company: companyItem._id});
+      const catalogsArrForCompany = await Catalog.find({ company: companyItem._id });
       for (const catalogItemForCompany of catalogsArrForCompany) {
         console.log(`Fetching details for Company ${companyItem.ID}, Catalog ${catalogItemForCompany.ID}`);
-        const response = await fetch(`${process.env.SIMPRO_API_URL}/companies/${companyItem.ID}/catalogs/${catalogItemForCompany.ID}`, {
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: 'Bearer ' + process.env.SIMPRO_API_KEY
+        const response = await fetch(
+          `${process.env.SIMPRO_API_URL}/companies/${companyItem.ID}/catalogs/${catalogItemForCompany.ID}`,
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: 'Bearer ' + process.env.SIMPRO_API_KEY
+            }
           }
-        });
+        );
 
         if (!response.ok) {
           throw new Error('Request Unsuccessful. Status Code: ' + response.status);
@@ -190,4 +200,34 @@ async function fetchCatalogDetails() {
   }
 }
 
-export { fetchCatalogs, fetchCatalogGroups, fetchCatalogGroupDetails, fetchCatalogDetails };
+async function syncArchivedCatalogs() {
+  console.log('Start: Syncing Archived Material Catalog Items with Simpro API');
+  try {
+    const archivedCatalogsArr = await Catalog.find({ Archived: true }).populate('company');
+    for (const archivedCatalogItem of archivedCatalogsArr) {
+      const response = await fetch(
+        `${process.env.SIMPRO_API_URL}/companies/${archivedCatalogItem.company.ID}/catalogs/${archivedCatalogItem.ID}`,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: 'Bearer ' + process.env.SIMPRO_API_KEY
+          },
+          method: 'PATCH',
+          body: JSON.stringify({
+            Name: archivedCatalogItem.Name,
+            Archived: archivedCatalogItem.Archived,
+            Notes: archivedCatalogItem.Notes
+          })
+        }
+      );
+      if (!response.ok) {
+        throw new Error('Request Unsuccessful. Status Code: ' + response.status + '\nError Message: ' + (await response.text()));
+      }
+    }
+  } catch (err) {
+    console.log(err);
+  }
+  console.log('Start: Syncing Archived Material Catalog Items with Simpro API');
+}
+
+export { fetchCatalogs, fetchCatalogGroups, fetchCatalogGroupDetails, fetchCatalogDetails, syncArchivedCatalogs };

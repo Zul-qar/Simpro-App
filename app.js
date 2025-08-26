@@ -16,8 +16,6 @@ import jobRoutes from './routes/jobRoutes.js';
 import supplierRoutes from './routes/supplierRoutes.js';
 import startAllCrons from './cron/index.js';
 
-import { fetchCatalogs, fetchCatalogDetails } from './cron/catalogs.js';
-
 const app = express();
 
 startAllCrons();
