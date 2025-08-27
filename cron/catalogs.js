@@ -106,7 +106,7 @@ async function fetchCatalogs() {
     console.log('Start: Fetcing all Material Catalog Items from Simpro API');
     const companiesArr = await Company.find();
     for (const companyItem of companiesArr) {
-      const pageSize = 250;
+      const pageSize = 1000;
       let page = 1;
       while (true) {
         console.log(`Fetching Catalogs for company ${companyItem.ID}, page ${page}`);

@@ -16,10 +16,7 @@ async function fetchCompanies() {
     }
 
     const companiesArr = await response.json();
-    for (const companyItem of companiesArr) {
-      const company = new Company({ ID: companyItem.ID, Name: companyItem.Name });
-      await company.save();
-    }
+    await Company.insertMany(companiesArr.map(companyItem => ({ ID: companyItem.ID, Name: companyItem.Name })));
     console.log('End: Fetching all companies from Simpro API');
   } catch (err) {
     console.log(err);
