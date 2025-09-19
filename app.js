@@ -16,11 +16,13 @@ import jobRoutes from './routes/jobRoutes.js';
 import supplierRoutes from './routes/supplierRoutes.js';
 import analysisRoutes from './routes/analysisRoutes.js';
 import vendorRoutes from './routes/vendorRoutes.js';
+import {fetchJobCostCenterCatalog} from './cron/jobs.js';
 import startAllCrons from './cron/index.js';
 
 const app = express();
 
 startAllCrons();
+fetchJobCostCenterCatalog();
 app.use(express.json());
 app.use(helmet());
 app.use(compression());
