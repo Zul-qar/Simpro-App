@@ -2,8 +2,8 @@ import cron from 'node-cron';
 
 import fetchCompanies from './companies.js';
 import { fetchPrebuilds, fetchPrebuildCatalogs } from './prebuilds.js';
-import { fetchJobs, fetchAndMergeJobDetails } from './jobs.js';
-import { fetchQuotes, fetchAndMergeQuoteDetails } from './quotes.js';
+import { fetchJobs, fetchAndMergeJobDetails, fetchJobCostCenters } from './jobs.js';
+import { fetchQuotes, fetchAndMergeQuoteDetails, fetchQuoteCostCenters, fetchQuoteCostCenterCatalogs } from './quotes.js';
 import { fetchVendorOrders, fetchVendorReceipts, fetchVendorOrderCatalogs, fetchVendorReceiptCatalogs } from './suppliers.js';
 import { fetchCatalogs, fetchCatalogGroups, fetchCatalogGroupDetails, fetchCatalogDetails, syncArchivedCatalogs } from './catalogs.js';
 
@@ -15,8 +15,11 @@ async function runAllJobsSequentially() {
   // await fetchPrebuildCatalogs();
   // await fetchJobs();
   // await fetchAndMergeJobDetails();
+  // await fetchJobCostCenters();
   // await fetchQuotes();
   // await fetchAndMergeQuoteDetails();
+  // await fetchQuoteCostCenters();
+  // await fetchQuoteCostCenterCatalogs();
   // await fetchVendorOrders();
   // await fetchVendorReceipts();
   // await fetchVendorOrderCatalogs();

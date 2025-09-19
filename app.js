@@ -14,12 +14,13 @@ import catalogRoutes from './routes/catalogRoutes.js';
 import quoteRoutes from './routes/quoteRoutes.js';
 import jobRoutes from './routes/jobRoutes.js';
 import supplierRoutes from './routes/supplierRoutes.js';
+import analysisRoutes from './routes/analysisRoutes.js';
+import vendorRoutes from './routes/vendorRoutes.js';
 import startAllCrons from './cron/index.js';
 
 const app = express();
 
 startAllCrons();
-
 app.use(express.json());
 app.use(helmet());
 app.use(compression());
@@ -37,6 +38,8 @@ app.use('/catalogs', catalogRoutes);
 app.use('/quotes', quoteRoutes);
 app.use('/jobs', jobRoutes);
 app.use('/supplier', supplierRoutes);
+app.use('/analysis', analysisRoutes);
+app.use('/vendor', vendorRoutes);
 
 app.use((error, req, res, next) => {
   console.log(error);

@@ -25,34 +25,73 @@ const getPrebuilds = async (req, res, next) => {
   }
 };
 
-const getPrebuildCatalogs = async (req, res, next) => {
-  const companyID = req.query.companyID;
-  const prebuildID = req.query.prebuildID;
+// const getPrebuildCatalogs = async (req, res, next) => {
+//   const companyID = req.query.companyID;
+//   const prebuildID = req.query.prebuildID;
 
-  if (!companyID || !prebuildID) {
-    const error = new Error('Company ID and Prebuild ID are required');
-    error.statusCode = 400;
-    throw error;
+//   if (!companyID || !prebuildID) {
+//     const error = new Error('Company ID and Prebuild ID are required');
+//     error.statusCode = 400;
+//     throw error;
+//   }
+
+//   try {
+//     const companyDoc = await Company.findOne({ ID: companyID });
+//     if (!companyDoc) {
+//       const error = new Error('Company not found');
+//       error.statusCode = 404;
+//       throw error;
+//     }
+//     const prebuildDoc = await Prebuild.findOne({ ID: prebuildID, company: companyDoc._id });
+//     if (!prebuildDoc) {
+//       const error = new Error('Prebuild not found');
+//       error.statusCode = 404;
+//       throw error;
+//     }
+//     const prebuildCatalogsArr = await PrebuildCatalog.find({ prebuild: prebuildDoc._id, company: companyDoc._id });
+//     res.status(200).json({ message: 'Prebuild Catalog List', catalogs: prebuildCatalogsArr });
+//   } catch (err) {
+//     next(err);
+//   }
+// };
+
+const getPrebuildCatalogs = async (req, res, next) => {
+  const { companyID } = req.query;
+
+  if (!companyID) {
+    return res.status(400).json({ message: 'companyID is required' });
   }
 
   try {
     const companyDoc = await Company.findOne({ ID: companyID });
     if (!companyDoc) {
-      const error = new Error('Company not found');
-      error.statusCode = 404;
-      throw error;
+      return res.status(404).json({ message: 'Company not found' });
     }
-    const prebuildDoc = await Prebuild.findOne({ ID: prebuildID, company: companyDoc._id });
-    if (!prebuildDoc) {
-      const error = new Error('Prebuild not found');
-      error.statusCode = 404;
-      throw error;
+
+    // get all Prebuilds for company
+    const prebuilds = await Prebuild.find({ company: companyDoc._id })
+      .select('_id ID Name PartNo');
+
+    if (!prebuilds.length) {
+      return res.status(200).json({ message: 'No Prebuilds found', prebuildCatalogs: [] });
     }
-    const prebuildCatalogsArr = await PrebuildCatalog.find({ prebuild: prebuildDoc._id, company: companyDoc._id });
-    res.status(200).json({ message: 'Prebuild Catalog List', catalogs: prebuildCatalogsArr });
+
+    const prebuildIds = prebuilds.map(p => p._id);
+
+    const prebuildCatalogs = await PrebuildCatalog.find({
+      company: companyDoc._id,
+      prebuild: { $in: prebuildIds }
+    }).select('Catalog Quantity DisplayOrder prebuild');
+
+    res.status(200).json({
+      message: 'Prebuild Catalogs List',
+      count: prebuildCatalogs.length,
+      prebuildCatalogs
+    });
   } catch (err) {
     next(err);
   }
 };
+
 
 export { getPrebuilds, getPrebuildCatalogs };

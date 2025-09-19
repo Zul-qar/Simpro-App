@@ -3,6 +3,7 @@ import pLimit from 'p-limit';
 
 import Company from '../models/company.js';
 import Job from '../models/job.js';
+import JobCostCenter from '../models/jobCostCenter.js';
 
 async function fetchJobs() {
   await clearJobs();
@@ -116,4 +117,62 @@ async function fetchAndMergeJobDetails() {
   }
 }
 
-export { fetchJobs, fetchAndMergeJobDetails };
+async function fetchJobCostCenters() {
+  await clearJobCostCenters();
+  try {
+    console.log('Start: Fetching Job Cost Centers from Simpro API');
+    const companiesArr = await Company.find();
+
+    for (const companyItem of companiesArr) {
+      const pageSize = 250;
+      let page = 1;
+
+      while (true) {
+        console.log(`Fetching Job Cost Centers for company ${companyItem.ID}, page ${page}`);
+        const response = await fetch(
+          `${process.env.SIMPRO_API_URL}/companies/${companyItem.ID}/jobCostCenters/?page=${page}&pageSize=${pageSize}`,
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: 'Bearer ' + process.env.SIMPRO_API_KEY
+            }
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error(`Request Unsuccessful. Status Code: ${response.status}`);
+        }
+
+        const dataArr = await response.json();
+
+        await JobCostCenter.insertMany(
+          dataArr.map(item => ({
+            ID: item.ID,
+            Name: item.Name,
+            CostCenter: item.CostCenter,
+            Job: item.Job,
+            Section: item.Section,
+            DateModified: item.DateModified ? new Date(item.DateModified) : null,
+            company: new mongoose.Types.ObjectId(companyItem._id)
+          }))
+        );
+
+        if (dataArr.length < pageSize) break;
+        page++;
+      }
+    }
+    console.log('End: Fetching Job Cost Centers from Simpro API');
+  } catch (err) {
+    console.error('Error fetching Job Cost Centers:', err.message);
+  }
+}
+
+async function clearJobCostCenters() {
+  try {
+    await JobCostCenter.deleteMany();
+  } catch (err) {
+    console.error('Error clearing Job Cost Centers:', err.message);
+  }
+}
+
+export { fetchJobs, fetchAndMergeJobDetails, fetchJobCostCenters};
