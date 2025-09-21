@@ -13,16 +13,13 @@ import prebuildRoutes from './routes/prebuildRoutes.js';
 import catalogRoutes from './routes/catalogRoutes.js';
 import quoteRoutes from './routes/quoteRoutes.js';
 import jobRoutes from './routes/jobRoutes.js';
-import supplierRoutes from './routes/supplierRoutes.js';
 import analysisRoutes from './routes/analysisRoutes.js';
 import vendorRoutes from './routes/vendorRoutes.js';
-import {fetchJobCostCenterCatalog} from './cron/jobs.js';
 import startAllCrons from './cron/index.js';
 
 const app = express();
 
 startAllCrons();
-fetchJobCostCenterCatalog();
 app.use(express.json());
 app.use(helmet());
 app.use(compression());
@@ -39,7 +36,6 @@ app.use('/prebuilds', prebuildRoutes);
 app.use('/catalogs', catalogRoutes);
 app.use('/quotes', quoteRoutes);
 app.use('/jobs', jobRoutes);
-app.use('/supplier', supplierRoutes);
 app.use('/analysis', analysisRoutes);
 app.use('/vendor', vendorRoutes);
 

@@ -56,42 +56,73 @@ const getPrebuilds = async (req, res, next) => {
 // };
 
 const getPrebuildCatalogs = async (req, res, next) => {
-  const { companyID } = req.query;
+  const { companyID, page, pageSize } = req.query;
 
+  // Validate required query parameters
   if (!companyID) {
     return res.status(400).json({ message: 'companyID is required' });
   }
 
   try {
+    // Find the company
     const companyDoc = await Company.findOne({ ID: companyID });
     if (!companyDoc) {
       return res.status(404).json({ message: 'Company not found' });
     }
 
-    // get all Prebuilds for company
+    // Determine if pagination should be applied
+    const usePagination = page && pageSize && !isNaN(Number(page)) && !isNaN(Number(pageSize)) && Number(page) >= 1 && Number(pageSize) >= 1;
+    const skip = usePagination ? (Number(page) - 1) * Number(pageSize) : 0;
+    const limit = usePagination ? Number(pageSize) : 0;
+
+    // Get all Prebuilds for company
     const prebuilds = await Prebuild.find({ company: companyDoc._id })
       .select('_id ID Name PartNo');
 
     if (!prebuilds.length) {
-      return res.status(200).json({ message: 'No Prebuilds found', prebuildCatalogs: [] });
+      return res.status(200).json({ 
+        message: 'No Prebuilds found', 
+        count: 0,
+        prebuildCatalogs: [] 
+      });
     }
 
     const prebuildIds = prebuilds.map(p => p._id);
 
-    const prebuildCatalogs = await PrebuildCatalog.find({
+    // Get catalog items linked to prebuilds
+    let prebuildCatalogQuery = PrebuildCatalog.find({
       company: companyDoc._id,
       prebuild: { $in: prebuildIds }
     }).select('Catalog Quantity DisplayOrder prebuild');
 
-    res.status(200).json({
-      message: 'Prebuild Catalogs List',
-      count: prebuildCatalogs.length,
-      prebuildCatalogs
+    if (usePagination) {
+      prebuildCatalogQuery = prebuildCatalogQuery.skip(skip).limit(limit);
+    }
+
+    const prebuildCatalogs = await prebuildCatalogQuery;
+    const prebuildCatalogCount = await PrebuildCatalog.countDocuments({
+      company: companyDoc._id,
+      prebuild: { $in: prebuildIds }
     });
+
+    // Build response object
+    const response = {
+      message: prebuildCatalogCount === 0 ? 'No prebuild catalogs found' : 'Prebuild Catalogs List',
+      count: prebuildCatalogCount,
+      prebuildCatalogs
+    };
+
+    // Add pagination metadata if pagination is used
+    if (usePagination) {
+      response.pageNo = Number(page);
+      response.pageSize = Number(pageSize);
+    }
+
+    res.status(200).json(response);
   } catch (err) {
+    console.error('Error in getPrebuildCatalogs:', err);
     next(err);
   }
 };
-
 
 export { getPrebuilds, getPrebuildCatalogs };
