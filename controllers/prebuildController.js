@@ -114,8 +114,10 @@ const getPrebuildCatalogs = async (req, res, next) => {
 
     // Add pagination metadata if pagination is used
     if (usePagination) {
+      const totalPages = Math.ceil(prebuildCatalogCount / Number(pageSize));
       response.pageNo = Number(page);
       response.pageSize = Number(pageSize);
+      response.totalPages = totalPages;
     }
 
     res.status(200).json(response);

@@ -81,8 +81,10 @@ const getCatalogs = async (req, res, next) => {
 
     // Add pagination metadata if pagination is used
     if (usePagination) {
+      const totalPages = Math.ceil(totalCount / Number(pageSize));
       response.pageNo = Number(page);
       response.pageSize = Number(pageSize);
+      response.totalPages = totalPages;
     }
 
     res.status(200).json(response);
@@ -137,93 +139,5 @@ const archiveCatalogs = async (req, res, next) => {
     return next(err);
   }
 };
-
-// const archiveCatalogs = async (req, res, next) => {
-//   try {
-//     const { companyID, catalogIds } = req.body;
-
-//     // Validate inputs
-//     if (!companyID) {
-//       const error = new Error('companyID is required');
-//       error.statusCode = 400;
-//       return next(error);
-//     }
-//     if (!Array.isArray(catalogIds) || catalogIds.length === 0) {
-//       const error = new Error('catalogIds must be a non-empty array');
-//       error.statusCode = 400;
-//       return next(error);
-//     }
-//     if (catalogIds.some(id => !id || typeof id !== 'number')) {
-//       const error = new Error('All catalogIds must be valid numbers');
-//       error.statusCode = 400;
-//       return next(error);
-//     }
-
-//     // Find the company
-//     const company = await Company.findOne({ ID: companyID }).lean();
-//     if (!company) {
-//       const error = new Error('Company not found');
-//       error.statusCode = 404;
-//       return next(error);
-//     }
-
-//     // Format current date for ARCHIVED-YYMMDD (e.g., ARCHIVED-250922 for 2025-09-22)
-//     const currentDate = new Date();
-//     const dateString = currentDate
-//       .toISOString()
-//       .slice(2, 10)
-//       .replace(/-/g, ''); // YYMMDD format
-
-//     // Find and validate catalogs
-//     const catalogs = await Catalog.find({
-//       company: company._id,
-//       ID: { $in: catalogIds },
-//       $or: [{ Archived: false }, { Archived: null }, { Archived: { $exists: false } }]
-//     }).lean();
-
-//     const validCatalogIds = new Set(catalogs.map(c => c.ID));
-//     const invalidIds = catalogIds.filter(id => !validCatalogIds.has(id));
-//     if (invalidIds.length > 0) {
-//       console.warn('Invalid or already archived catalog IDs:', invalidIds);
-//     }
-
-//     if (catalogs.length === 0) {
-//       return res.status(400).json({
-//         message: 'No valid non-archived catalogs found for the provided IDs',
-//         archivedCount: 0
-//       });
-//     }
-
-//     // Perform updates
-//     const updatePromises = catalogs.map(async (catalog) => {
-//       const update = {
-//         $set: {
-//           Archived: true,
-//           Name: `${catalog.Name} (ARCHIVED)`,
-//           Notes: catalog.Notes ? `${catalog.Notes} (ARCHIVED-${dateString})` : `(ARCHIVED-${dateString})`
-//         }
-//       };
-//       return Catalog.updateOne(
-//         { _id: catalog._id, company: company._id },
-//         update
-//       );
-//     });
-
-//     const results = await Promise.all(updatePromises);
-//     const archivedCount = results.filter(result => result.modifiedCount > 0).length;
-
-//     // Log the operation
-//     console.log(`Archived ${archivedCount} catalog items for companyID: ${companyID}`);
-
-//     res.status(200).json({
-//       message: archivedCount > 0 ? `${archivedCount} catalog items archived successfully` : 'No catalog items were archived',
-//       archivedCount,
-//       invalidIds: invalidIds.length > 0 ? invalidIds : undefined
-//     });
-//   } catch (err) {
-//     console.error('Error in archiveCatalogs:', err);
-//     next(err);
-//   }
-// };
 
 export { getCatalogs, archiveCatalogs };

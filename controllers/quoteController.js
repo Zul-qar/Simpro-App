@@ -122,8 +122,10 @@ const getQuoteCatalogs = async (req, res, next) => {
 
     // Add pagination metadata if pagination is used
     if (usePagination) {
+      const totalPages = Math.ceil(quoteCatalogCount / Number(pageSize));
       response.pageNo = Number(page);
       response.pageSize = Number(pageSize);
+      response.totalPages = totalPages;
     }
 
     res.status(200).json(response);

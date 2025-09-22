@@ -90,20 +90,23 @@ const getVendorCatalogs = async (req, res, next) => {
       company: companyDoc._id,
       vendorOrder: { $in: orderIds }
     });
-
+    const totalCount = receiptCatalogCount + orderCatalogCount;
     // Build response object
     const response = {
       message: (receiptCatalogCount === 0 && orderCatalogCount === 0) ? 'No vendor catalogs found' : 'Vendor Catalogs List',
       ordersCount: orderCatalogCount,
       receiptsCount: receiptCatalogCount,
+      totalCount: totalCount,
       orderCatalogs,
       receiptCatalogs
     };
 
     // Add pagination metadata if pagination is used
     if (usePagination) {
+      const totalPages = Math.ceil(totalCount / Number(pageSize));
       response.pageNo = Number(page);
       response.pageSize = Number(pageSize);
+      response.totalPages = totalPages;
     }
 
     res.json(response);

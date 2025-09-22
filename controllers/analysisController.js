@@ -55,15 +55,16 @@ const getActiveCatalogs = async (req, res, next) => {
 
     // Determine if pagination should be applied
     const usePagination = page && pageSize && !isNaN(Number(page)) && !isNaN(Number(pageSize)) && Number(page) >= 1 && Number(pageSize) >= 1;
-    const skip = usePagination ? (Number(page) - 1) * Number(pageSize) : 0;
-    const limit = usePagination ? Number(pageSize) : 0;
+    const pageNo = usePagination ? Number(page) : 1;
+    const pageSizeNum = usePagination ? Number(pageSize) : 0;
+    const skip = usePagination ? (pageNo - 1) * pageSizeNum : 0;
+    const limit = usePagination ? pageSizeNum : 0;
 
     // 1. Prebuilds
     const prebuildIds = await Prebuild.distinct('_id', { company: companyId, Archived: false }).lean();
     const prebuildCatalogIds = new Set(
       await PrebuildCatalog.distinct('Catalog.ID', { company: companyId, prebuild: { $in: prebuildIds } }).lean()
     );
-    console.log('Prebuild Catalog IDs:', prebuildCatalogIds);
 
     // 2. Quotes
     const quoteFilter = { company: companyId, $or: [{ IsClosed: false }, { DateIssued: { $gte: start, $lte: end } }] };
@@ -74,7 +75,6 @@ const getActiveCatalogs = async (req, res, next) => {
         QuoteCostCenterID: { $in: await QuoteCostCenter.distinct('_id', { company: companyId, 'Quote.ID': { $in: quoteIds } }).lean() }
       }).lean()
     );
-    console.log('Quote Catalog IDs:', quoteCatalogIds);
 
     // 3. Purchases/Supplier Invoices
     const receiptFilter = { company: companyId, DateIssued: { $gte: startDate, $lte: endDate } };
@@ -82,7 +82,6 @@ const getActiveCatalogs = async (req, res, next) => {
     const receiptCatalogIds = new Set(
       await VendorReceiptCatalog.distinct('ID', { company: companyId, vendorReceipt: { $in: receiptIds } }).lean()
     );
-    console.log('Receipt Catalog IDs:', receiptCatalogIds);
 
     const orderIds = await VendorOrder.distinct('_id', {
       company: companyId,
@@ -92,10 +91,8 @@ const getActiveCatalogs = async (req, res, next) => {
     const orderCatalogIds = new Set(
       await VendorOrderCatalog.distinct('Catalog.ID', { company: companyId, vendorOrder: { $in: orderIds } }).lean()
     );
-    console.log('Order Catalog IDs:', orderCatalogIds);
 
     const supplierCatalogIds = new Set([...receiptCatalogIds, ...orderCatalogIds]);
-    console.log('Supplier Catalog IDs:', supplierCatalogIds);
 
     // 4. Jobs
     const jobFilter = {
@@ -103,21 +100,16 @@ const getActiveCatalogs = async (req, res, next) => {
       Stage: { $ne: 'Archived' },
       DateIssued: { $gte: start, $lte: end }
     };
-    const jobIds = await Job.distinct('ID', jobFilter).lean(); // Use Job.ID instead of _id
-    console.log('Job IDs:', jobIds);
-
+    const jobIds = await Job.distinct('ID', jobFilter).lean();
     const jobCostCenterIds = await JobCostCenter.distinct('_id', {
       company: companyId,
       'Job.ID': { $in: jobIds }
     }).lean();
-    console.log('Job Cost Center IDs:', jobCostCenterIds);
-
     const jobCatalogIds = new Set(
       await JobCostCenterCatalog.distinct('Catalog.ID', {
         jobCostCenter: { $in: jobCostCenterIds }
       }).lean()
     );
-    console.log('Job Catalog IDs:', jobCatalogIds);
 
     // Combine all catalog IDs
     const allCatalogIds = Array.from(new Set([
@@ -143,19 +135,39 @@ const getActiveCatalogs = async (req, res, next) => {
       });
     }
 
-    // Debug: Check catalog existence with Archived field
-    const foundCatalogs = await Catalog.find({ company: companyId, ID: { $in: allCatalogIds } })
-      .select('ID company Archived')
-      .lean();
-    console.log('Found Catalogs for IDs:', foundCatalogs.map(c => ({ ID: c.ID, Archived: c.Archived })));
+    // Fetch catalog counts
+    const activeCatalogCount = await Catalog.countDocuments({
+      company: companyId,
+      ID: { $in: allCatalogIds },
+      $or: [{ Archived: false }, { Archived: null }, { Archived: { $exists: false } }]
+    });
+    const prebuildCatalogCount = await Catalog.countDocuments({
+      company: companyId,
+      ID: { $in: Array.from(prebuildCatalogIds) },
+      $or: [{ Archived: false }, { Archived: null }, { Archived: { $exists: false } }]
+    });
+    const quoteCatalogCount = await Catalog.countDocuments({
+      company: companyId,
+      ID: { $in: Array.from(quoteCatalogIds) },
+      $or: [{ Archived: false }, { Archived: null }, { Archived: { $exists: false } }]
+    });
+    const supplierCatalogCount = await Catalog.countDocuments({
+      company: companyId,
+      ID: { $in: Array.from(supplierCatalogIds) },
+      $or: [{ Archived: false }, { Archived: null }, { Archived: { $exists: false } }]
+    });
+    const jobCatalogCount = await Catalog.countDocuments({
+      company: companyId,
+      ID: { $in: Array.from(jobCatalogIds) },
+      $or: [{ Archived: false }, { Archived: null }, { Archived: { $exists: false } }]
+    });
+    const archivedCatalogCount = await Catalog.countDocuments({
+      company: companyId,
+      ID: { $in: allCatalogIds },
+      Archived: true
+    });
 
-    // Debug: Count catalogs by Archived status
-    const archivedCount = await Catalog.countDocuments({ company: companyId, ID: { $in: allCatalogIds }, Archived: true });
-    const nonArchivedCount = await Catalog.countDocuments({ company: companyId, ID: { $in: allCatalogIds }, Archived: false });
-    const nullArchivedCount = await Catalog.countDocuments({ company: companyId, ID: { $in: allCatalogIds }, $or: [{ Archived: null }, { Archived: { $exists: false } }] });
-    console.log('Catalog Counts - Archived: true:', archivedCount, 'Archived: false:', nonArchivedCount, 'Archived: null or missing:', nullArchivedCount);
-
-    // Fetch catalog documents, treating undefined or null Archived as active
+    // Fetch catalog documents
     let activeCatalogQuery = Catalog.find({
       company: companyId,
       ID: { $in: allCatalogIds },
@@ -165,11 +177,6 @@ const getActiveCatalogs = async (req, res, next) => {
       activeCatalogQuery = activeCatalogQuery.skip(skip).limit(limit);
     }
     const activeCatalogs = await activeCatalogQuery;
-    const activeCatalogCount = await Catalog.countDocuments({
-      company: companyId,
-      ID: { $in: allCatalogIds },
-      $or: [{ Archived: false }, { Archived: null }, { Archived: { $exists: false } }]
-    });
 
     let prebuildCatalogQuery = Catalog.find({
       company: companyId,
@@ -180,11 +187,6 @@ const getActiveCatalogs = async (req, res, next) => {
       prebuildCatalogQuery = prebuildCatalogQuery.skip(skip).limit(limit);
     }
     const prebuildCatalogs = await prebuildCatalogQuery;
-    const prebuildCatalogCount = await Catalog.countDocuments({
-      company: companyId,
-      ID: { $in: Array.from(prebuildCatalogIds) },
-      $or: [{ Archived: false }, { Archived: null }, { Archived: { $exists: false } }]
-    });
 
     let quoteCatalogQuery = Catalog.find({
       company: companyId,
@@ -195,11 +197,6 @@ const getActiveCatalogs = async (req, res, next) => {
       quoteCatalogQuery = quoteCatalogQuery.skip(skip).limit(limit);
     }
     const quoteCatalogs = await quoteCatalogQuery;
-    const quoteCatalogCount = await Catalog.countDocuments({
-      company: companyId,
-      ID: { $in: Array.from(quoteCatalogIds) },
-      $or: [{ Archived: false }, { Archived: null }, { Archived: { $exists: false } }]
-    });
 
     let supplierCatalogQuery = Catalog.find({
       company: companyId,
@@ -210,13 +207,7 @@ const getActiveCatalogs = async (req, res, next) => {
       supplierCatalogQuery = supplierCatalogQuery.skip(skip).limit(limit);
     }
     const supplierCatalogs = await supplierCatalogQuery;
-    const supplierCatalogCount = await Catalog.countDocuments({
-      company: companyId,
-      ID: { $in: Array.from(supplierCatalogIds) },
-      $or: [{ Archived: false }, { Archived: null }, { Archived: { $exists: false } }]
-    });
 
-    // Job Catalogs
     let jobCatalogQuery = Catalog.find({
       company: companyId,
       ID: { $in: Array.from(jobCatalogIds) },
@@ -226,36 +217,63 @@ const getActiveCatalogs = async (req, res, next) => {
       jobCatalogQuery = jobCatalogQuery.skip(skip).limit(limit);
     }
     const jobCatalogs = await jobCatalogQuery;
-    const jobCatalogCount = await Catalog.countDocuments({
-      company: companyId,
-      ID: { $in: Array.from(jobCatalogIds) },
-      $or: [{ Archived: false }, { Archived: null }, { Archived: { $exists: false } }]
-    });
 
-    // Debug: Check archived catalogs
-    const archivedCatalogs = await Catalog.find({
-      company: companyId,
-      ID: { $in: allCatalogIds },
-      Archived: true
-    })
-      .select('ID')
-      .lean();
-    console.log('Archived Catalogs:', archivedCatalogs.length, archivedCatalogs.map(c => c.ID));
-
-    res.status(200).json({
+    // Prepare response with pagination details
+    const response = {
       message: activeCatalogCount === 0 ? 'No active catalogs found, check if catalogs are archived' : 'Active catalogs retrieved successfully',
       activeCatalogCount,
       prebuildCatalogCount,
       quoteCatalogCount,
       supplierCatalogCount,
       jobCatalogCount,
-      archivedCatalogCount: archivedCatalogs.length,
-      activeCatalogs,
-      prebuildCatalogs,
-      quoteCatalogs,
-      supplierCatalogs,
-      jobCatalogs
-    });
+      archivedCatalogCount,
+      activeCatalogs: {
+        data: activeCatalogs
+      },
+      prebuildCatalogs: {
+        data: prebuildCatalogs
+      },
+      quoteCatalogs: {
+        data: quoteCatalogs
+      },
+      supplierCatalogs: {
+        data: supplierCatalogs
+      },
+      jobCatalogs: {
+        data: jobCatalogs
+      }
+    };
+
+    // Add pagination details if pagination is applied
+    if (usePagination) {
+      response.activeCatalogs.pagination = {
+        pageNo,
+        pageSize: pageSizeNum,
+        totalPages: Math.ceil(activeCatalogCount / pageSizeNum)
+      };
+      response.prebuildCatalogs.pagination = {
+        pageNo,
+        pageSize: pageSizeNum,
+        totalPages: Math.ceil(prebuildCatalogCount / pageSizeNum)
+      };
+      response.quoteCatalogs.pagination = {
+        pageNo,
+        pageSize: pageSizeNum,
+        totalPages: Math.ceil(quoteCatalogCount / pageSizeNum)
+      };
+      response.supplierCatalogs.pagination = {
+        pageNo,
+        pageSize: pageSizeNum,
+        totalPages: Math.ceil(supplierCatalogCount / pageSizeNum)
+      };
+      response.jobCatalogs.pagination = {
+        pageNo,
+        pageSize: pageSizeNum,
+        totalPages: Math.ceil(jobCatalogCount / pageSizeNum)
+      };
+    }
+
+    res.status(200).json(response);
   } catch (err) {
     console.error('Error in getActiveCatalogs:', err);
     next(err);
@@ -267,8 +285,9 @@ const getUsageAnalysis = async (req, res, next) => {
     const { companyID, startDate, endDate, page, pageSize } = req.query;
 
     // Validate required inputs
-    if (!companyID || !startDate || !endDate) {
-      return res.status(400).json({ message: 'companyID, startDate, and endDate are required' });
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!companyID || !startDate || !endDate || !dateRegex.test(startDate) || !dateRegex.test(endDate)) {
+      return res.status(400).json({ message: 'companyID, startDate, and endDate (YYYY-MM-DD) are required' });
     }
 
     // Parse and validate dates
@@ -279,98 +298,92 @@ const getUsageAnalysis = async (req, res, next) => {
       return res.status(400).json({ message: 'Invalid startDate or endDate' });
     }
 
-    // Determine if pagination should be applied
-    const usePagination = page && pageSize && !isNaN(Number(page)) && !isNaN(Number(pageSize)) && Number(page) >= 1 && Number(pageSize) >= 1;
-    const skip = usePagination ? (Number(page) - 1) * Number(pageSize) : 0;
-    const limit = usePagination ? Number(pageSize) : 0;
-
     // Find the company
     const company = await Company.findOne({ ID: companyID }).lean();
     if (!company) {
       return res.status(404).json({ message: 'Company not found' });
     }
+    const companyId = company._id;
 
-    // 1) Fetch non-archived catalogs within the date range
+    // Determine if pagination should be applied
+    const usePagination = page && pageSize && !isNaN(Number(page)) && !isNaN(Number(pageSize)) && Number(page) >= 1 && Number(pageSize) >= 1;
+    const pageNo = usePagination ? Number(page) : 1;
+    const pageSizeNum = usePagination ? Number(pageSize) : 0;
+    const skip = usePagination ? (pageNo - 1) * pageSizeNum : 0;
+    const limit = usePagination ? pageSizeNum : 0;
+
+    // Base catalog query for active catalogs in date range
     const catalogQuery = {
-      company: company._id,
+      company: companyId,
       DateModified: { $gte: start, $lte: end },
       $or: [{ Archived: false }, { Archived: null }, { Archived: { $exists: false } }]
     };
-    let masterCatalogQuery = Catalog.find(catalogQuery)
-      .select('ID PartNo Name Group Archived DateModified')
-      .lean();
-    if (usePagination) {
-      masterCatalogQuery = masterCatalogQuery.skip(skip).limit(limit);
-    }
-    const masterCatalogs = await masterCatalogQuery;
-    const totalActiveCount = await Catalog.countDocuments(catalogQuery);
-    console.log('Total active catalogs:', totalActiveCount);
 
-    // 2) Collect in-use catalog IDs
+    // Get total active count
+    const totalActiveCount = await Catalog.countDocuments(catalogQuery);
+
+    // Collect in-use catalog IDs
     const inUseSet = new Set();
 
     // --- Quotes ---
     const quoteFilter = {
-      company: company._id,
+      company: companyId,
       $or: [{ IsClosed: false }, { DateIssued: { $gte: start, $lte: end } }]
     };
     const quoteIds = await Quote.distinct('ID', quoteFilter).lean();
     if (quoteIds.length) {
       const quoteCostCenterIds = await QuoteCostCenter.distinct('_id', {
-        company: company._id,
+        company: companyId,
         'Quote.ID': { $in: quoteIds }
       }).lean();
       const ids = await QuoteCostCenterCatalog.distinct('Catalog.ID', {
-        company: company._id,
+        company: companyId,
         QuoteCostCenterID: { $in: quoteCostCenterIds }
       }).lean();
       ids.forEach(id => inUseSet.add(Number(id)));
     }
-    console.log('Quote Catalog IDs:', inUseSet.size);
 
     // --- Jobs ---
     const jobFilter = {
-      company: company._id,
+      company: companyId,
       DateIssued: { $gte: start, $lte: end },
       Stage: { $nin: ['Archived'] }
     };
     const jobIds = await Job.distinct('ID', jobFilter).lean();
     if (jobIds.length) {
       const jobCostCenterIds = await JobCostCenter.distinct('_id', {
-        company: company._id,
+        company: companyId,
         'Job.ID': { $in: jobIds }
       }).lean();
       const ids = await JobCostCenterCatalog.distinct('Catalog.ID', {
-        company: company._id,
+        company: companyId,
         jobCostCenter: { $in: jobCostCenterIds }
       }).lean();
       ids.forEach(id => inUseSet.add(Number(id)));
     }
-    console.log('Job Catalog IDs:', inUseSet.size);
 
     // --- Prebuilds ---
     const prebuildIds = await Prebuild.distinct('_id', {
-      company: company._id,
+      company: companyId,
       Archived: false
     }).lean();
     if (prebuildIds.length) {
       const ids = await PrebuildCatalog.distinct('Catalog.ID', {
-        company: company._id,
+        company: companyId,
         prebuild: { $in: prebuildIds }
       }).lean();
       ids.forEach(id => inUseSet.add(Number(id)));
     }
-    console.log('Prebuild Catalog IDs:', inUseSet.size);
 
     // --- Vendor/Supplier Orders and Receipts ---
     const receiptFilter = {
-      company: company._id,
-      DateIssued: { $gte: startDate, $lte: endDate } // String comparison
+      company: companyId,
+      DateIssued: { $gte: start, $lte: end }
     };
     const receiptIds = await VendorReceipt.distinct('_id', receiptFilter).lean();
     const vendorOrderIdsFromReceipts = await VendorReceipt.distinct('vendorOrder', receiptFilter).lean();
     const orderFilter = {
-      company: company._id,
+      company: companyId,
       _id: { $in: vendorOrderIdsFromReceipts },
       Stage: { $nin: ['Archived', 'Voided'] }
     };
@@ -378,46 +391,63 @@ const getUsageAnalysis = async (req, res, next) => {
 
     const receiptCatalogIds = new Set(
       await VendorReceiptCatalog.distinct('Catalog.ID', {
-        company: company._id,
+        company: companyId,
         vendorReceipt: { $in: receiptIds }
       }).lean()
     );
     const orderCatalogIds = new Set(
       await VendorOrderCatalog.distinct('Catalog.ID', {
-        company: company._id,
+        company: companyId,
         vendorOrder: { $in: orderIds }
       }).lean()
     );
     const supplierCatalogIds = new Set([...receiptCatalogIds, ...orderCatalogIds]);
     supplierCatalogIds.forEach(id => inUseSet.add(Number(id)));
-    console.log('Supplier Catalog IDs:', supplierCatalogIds.size);
 
-    // 3) Split master catalogs into in-use and to-be-archived
-    const inUseItems = [];
-    const toBeArchivedItems = [];
-    for (const catalog of masterCatalogs) {
-      if (inUseSet.has(Number(catalog.ID))) {
-        inUseItems.push(catalog);
-      } else {
-        toBeArchivedItems.push(catalog);
-      }
-    }
+    // Convert inUseSet to array for queries
+    const inUseIds = Array.from(inUseSet);
 
-    // 4) Calculate counts and percentages
-    const inUseCount = inUseItems.length;
-    const toBeArchivedCount = toBeArchivedItems.length;
+    // Calculate full counts
+    const inUseCount = inUseIds.length > 0 ? await Catalog.countDocuments({
+      ...catalogQuery,
+      ID: { $in: inUseIds }
+    }) : 0;
+    const toBeArchivedCount = totalActiveCount - inUseCount;
+
+    // Calculate percentages
     const inUsePercentage = totalActiveCount > 0 ? ((inUseCount / totalActiveCount) * 100).toFixed(2) : 0;
     const toBeArchivedPercentage = totalActiveCount > 0 ? ((toBeArchivedCount / totalActiveCount) * 100).toFixed(2) : 0;
 
-    // 5) Apply pagination to in-use and to-be-archived lists
-    let paginatedInUseItems = inUseItems;
-    let paginatedToBeArchivedItems = toBeArchivedItems;
+    // Fetch paginated total active items
+    let totalActiveQuery = Catalog.find(catalogQuery)
+      .select('ID PartNo Name Group Archived DateModified')
+      .lean();
     if (usePagination) {
-      paginatedInUseItems = inUseItems.slice(skip, skip + limit);
-      paginatedToBeArchivedItems = toBeArchivedItems.slice(skip, skip + limit);
+      totalActiveQuery = totalActiveQuery.skip(skip).limit(limit);
     }
+    const totalActiveItems = await totalActiveQuery;
 
-    // 6) Build response
+    // Fetch paginated in-use items
+    let inUseQuery = Catalog.find({
+      ...catalogQuery,
+      ID: { $in: inUseIds }
+    }).select('ID PartNo Name Group Archived DateModified').lean();
+    if (usePagination) {
+      inUseQuery = inUseQuery.skip(skip).limit(limit);
+    }
+    const inUseItems = await inUseQuery;
+
+    // Fetch paginated to-be-archived items
+    let toBeArchivedQuery = Catalog.find({
+      ...catalogQuery,
+      ID: { $nin: inUseIds }
+    }).select('ID PartNo Name Group Archived DateModified').lean();
+    if (usePagination) {
+      toBeArchivedQuery = toBeArchivedQuery.skip(skip).limit(limit);
+    }
+    const toBeArchivedItems = await toBeArchivedQuery;
+
+    // Build response
     const response = {
       message: totalActiveCount === 0 ? 'No active catalogs found' : 'Catalog Usage Analysis',
       totalActiveCount,
@@ -425,14 +455,34 @@ const getUsageAnalysis = async (req, res, next) => {
       toBeArchivedCount,
       inUsePercentage: Number(inUsePercentage),
       toBeArchivedPercentage: Number(toBeArchivedPercentage),
-      inUseItems: paginatedInUseItems,
-      toBeArchivedItems: paginatedToBeArchivedItems
+      totalActiveItems: {
+        data: totalActiveItems
+      },
+      inUseItems: {
+        data: inUseItems
+      },
+      toBeArchivedItems: {
+        data: toBeArchivedItems
+      }
     };
 
     // Add pagination metadata if pagination is used
     if (usePagination) {
-      response.pageNo = Number(page);
-      response.pageSize = Number(pageSize);
+      response.totalActiveItems.pagination = {
+        pageNo,
+        pageSize: pageSizeNum,
+        totalPages: Math.ceil(totalActiveCount / pageSizeNum)
+      };
+      response.inUseItems.pagination = {
+        pageNo,
+        pageSize: pageSizeNum,
+        totalPages: Math.ceil(inUseCount / pageSizeNum)
+      };
+      response.toBeArchivedItems.pagination = {
+        pageNo,
+        pageSize: pageSizeNum,
+        totalPages: Math.ceil(toBeArchivedCount / pageSizeNum)
+      };
     }
 
     res.status(200).json(response);
