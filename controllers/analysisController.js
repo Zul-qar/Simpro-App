@@ -437,6 +437,10 @@ const getUsageAnalysis = async (req, res, next) => {
     if (usePagination) toBeArchivedQuery = toBeArchivedQuery.skip(skip).limit(limit);
     const toBeArchivedItems = await toBeArchivedQuery;
 
+    // Always get full list of "to be archived" IDs (ignores pagination)
+    const allToBeArchivedIds = await Catalog.find({ ...catalogQuery, ID: { $nin: inUseIds }, ...searchCondition })
+      .distinct("ID");
+
     // Response
     const response = {
       message: totalActiveCount === 0 ? 'No active catalogs found' : 'Catalog Usage Analysis',
@@ -447,7 +451,10 @@ const getUsageAnalysis = async (req, res, next) => {
       toBeArchivedPercentage: Number(toBeArchivedPercentage),
       totalActiveItems: { data: totalActiveItems },
       inUseItems: { data: inUseItems },
-      toBeArchivedItems: { data: toBeArchivedItems }
+      toBeArchivedItems: {
+        data: toBeArchivedItems,
+        ids: allToBeArchivedIds   // ✅ always include all IDs here
+      }
     };
 
     if (usePagination) {
@@ -474,6 +481,7 @@ const getUsageAnalysis = async (req, res, next) => {
     next(err);
   }
 };
+
 
 // const archiveAndGroupCleanup = async (req, res, next) => {
 //   const { companyID, catalogIDs } = req.body;
