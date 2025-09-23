@@ -5,17 +5,14 @@ import VendorReceipt from '../models/vendorReceipt.js';
 import VendorReceiptCatalog from '../models/vendorReceiptCatalog.js';
 
 const getVendorCatalogs = async (req, res, next) => {
-  const { companyID, startDate, endDate, page, pageSize } = req.query;
+  const { companyID, startDate, endDate, page, pageSize, search } = req.query;
 
-  // Log input parameters
-  console.log('Input parameters:', { companyID, startDate, endDate, page, pageSize });
+  console.log('Input parameters:', { companyID, startDate, endDate, page, pageSize, search });
 
-  // Validate required inputs
   if (!companyID) {
     return res.status(400).json({ message: 'companyID is required' });
   }
 
-  // Basic date validation
   let parsedStartDate = null;
   let parsedEndDate = null;
   if (startDate && endDate) {
@@ -26,32 +23,27 @@ const getVendorCatalogs = async (req, res, next) => {
     }
   }
 
-  // Determine if pagination should be applied
-  const usePagination = page && pageSize && !isNaN(Number(page)) && !isNaN(Number(pageSize)) && Number(page) >= 1 && Number(pageSize) >= 1;
+  const usePagination = page && pageSize && !isNaN(Number(page)) && !isNaN(Number(pageSize)) &&
+                        Number(page) >= 1 && Number(pageSize) >= 1;
   const skip = usePagination ? (Number(page) - 1) * Number(pageSize) : 0;
   const limit = usePagination ? Number(pageSize) : 0;
 
   try {
-    // Find the company
     const companyDoc = await Company.findOne({ ID: companyID });
     if (!companyDoc) {
       return res.status(404).json({ message: 'Company not found' });
     }
 
-    // --- Step 1: Filter Vendor Receipts by date range (if provided)
+    // --- Step 1: Filter Vendor Receipts by date range
     const receiptFilter = { company: companyDoc._id };
     if (parsedStartDate && parsedEndDate) {
-      // Note: DateIssued is String; this does lexical comparison. Consider schema change to Date.
-      receiptFilter.DateIssued = {
-        $gte: startDate,
-        $lte: endDate
-      };
+      receiptFilter.DateIssued = { $gte: startDate, $lte: endDate };
     }
 
     const receiptIds = await VendorReceipt.distinct('_id', receiptFilter).lean();
     const vendorOrderIdsFromReceipts = await VendorReceipt.distinct('vendorOrder', receiptFilter).lean();
 
-    // --- Step 2: Filter Vendor Orders (linked to filtered receipts + stage check)
+    // --- Step 2: Vendor Orders filter
     const orderFilter = {
       company: companyDoc._id,
       _id: { $in: vendorOrderIdsFromReceipts },
@@ -59,12 +51,25 @@ const getVendorCatalogs = async (req, res, next) => {
     };
     const orderIds = await VendorOrder.distinct('_id', orderFilter).lean();
 
-    // --- Step 3: Fetch Receipt Catalogs (filtered by receipt IDs)
+    // --- Step 3: Search criteria (Catalog.Name, Catalog.ID)
+    let catalogSearch = {};
+    if (search) {
+      const orCriteria = [
+        { "Catalog.Name": { $regex: search, $options: "i" } }
+      ];
+      if (!isNaN(search)) {
+        orCriteria.push({ "Catalog.ID": Number(search) });
+      }
+      catalogSearch.$or = orCriteria;
+    }
+
+    // --- Step 4: Receipt Catalogs
     let receiptCatalogQuery = VendorReceiptCatalog.find({
       company: companyDoc._id,
-      vendorReceipt: { $in: receiptIds }
+      vendorReceipt: { $in: receiptIds },
+      ...catalogSearch
     }).populate('vendorReceipt vendorOrder', 'ID VendorInvoiceNo DateIssued Reference');
-    
+
     if (usePagination) {
       receiptCatalogQuery = receiptCatalogQuery.skip(skip).limit(limit);
     }
@@ -72,15 +77,17 @@ const getVendorCatalogs = async (req, res, next) => {
     const receiptCatalogs = await receiptCatalogQuery;
     const receiptCatalogCount = await VendorReceiptCatalog.countDocuments({
       company: companyDoc._id,
-      vendorReceipt: { $in: receiptIds }
+      vendorReceipt: { $in: receiptIds },
+      ...catalogSearch
     });
 
-    // --- Step 4: Fetch Order Catalogs (filtered by order IDs)
+    // --- Step 5: Order Catalogs
     let orderCatalogQuery = VendorOrderCatalog.find({
       company: companyDoc._id,
-      vendorOrder: { $in: orderIds }
+      vendorOrder: { $in: orderIds },
+      ...catalogSearch
     }).populate('vendorOrder', 'ID Reference Stage');
-    
+
     if (usePagination) {
       orderCatalogQuery = orderCatalogQuery.skip(skip).limit(limit);
     }
@@ -88,25 +95,28 @@ const getVendorCatalogs = async (req, res, next) => {
     const orderCatalogs = await orderCatalogQuery;
     const orderCatalogCount = await VendorOrderCatalog.countDocuments({
       company: companyDoc._id,
-      vendorOrder: { $in: orderIds }
+      vendorOrder: { $in: orderIds },
+      ...catalogSearch
     });
+
     const totalCount = receiptCatalogCount + orderCatalogCount;
-    // Build response object
+
+    // --- Response
     const response = {
-      message: (receiptCatalogCount === 0 && orderCatalogCount === 0) ? 'No vendor catalogs found' : 'Vendor Catalogs List',
+      message: (receiptCatalogCount === 0 && orderCatalogCount === 0)
+        ? 'No vendor catalogs found'
+        : 'Vendor Catalogs List',
       ordersCount: orderCatalogCount,
       receiptsCount: receiptCatalogCount,
-      totalCount: totalCount,
+      totalCount,
       orderCatalogs,
       receiptCatalogs
     };
 
-    // Add pagination metadata if pagination is used
     if (usePagination) {
-      const totalPages = Math.ceil(totalCount / Number(pageSize));
       response.pageNo = Number(page);
       response.pageSize = Number(pageSize);
-      response.totalPages = totalPages;
+      response.totalPages = Math.ceil(totalCount / Number(pageSize));
     }
 
     res.json(response);
@@ -115,5 +125,6 @@ const getVendorCatalogs = async (req, res, next) => {
     next(err);
   }
 };
+
 
 export { getVendorCatalogs };

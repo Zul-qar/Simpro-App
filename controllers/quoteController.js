@@ -35,102 +35,124 @@ const getQuotes = async (req, res, next) => {
 };
 
 const getQuoteCatalogs = async (req, res, next) => {
-  const { companyID, startDate, endDate, page, pageSize } = req.query;
+  const { companyID, startDate, endDate, page, pageSize, search } = req.query;
 
-  // Validate required query parameters
   if (!companyID || !startDate || !endDate) {
     return res.status(400).json({ message: "companyID, startDate, and endDate are required" });
   }
 
   try {
-    // Find the company
+    // 1. Find the company
     const companyDoc = await Company.findOne({ ID: companyID });
     if (!companyDoc) {
       return res.status(404).json({ message: "Company not found" });
     }
 
-    // Set date range boundaries
+    // 2. Date range
     const start = new Date(startDate);
     start.setHours(0, 0, 0, 0);
     const end = new Date(endDate);
     end.setHours(23, 59, 59, 999);
 
-    // Determine if pagination should be applied
-    const usePagination = page && pageSize && !isNaN(Number(page)) && !isNaN(Number(pageSize)) && Number(page) >= 1 && Number(pageSize) >= 1;
+    // 3. Pagination setup
+    const usePagination =
+      page &&
+      pageSize &&
+      !isNaN(Number(page)) &&
+      !isNaN(Number(pageSize)) &&
+      Number(page) >= 1 &&
+      Number(pageSize) >= 1;
+
     const skip = usePagination ? (Number(page) - 1) * Number(pageSize) : 0;
     const limit = usePagination ? Number(pageSize) : 0;
 
-    // 1. Get quotes in date range
+    // 4. Get quotes in range
     const quotes = await Quote.find({
       company: companyDoc._id,
-      DateIssued: { $gte: start, $lte: end }
+      DateIssued: { $gte: start, $lte: end },
     }).select("_id ID DateIssued");
 
     if (!quotes.length) {
-      return res.status(200).json({ 
-        message: "No quotes found in date range", 
+      return res.status(200).json({
+        message: "No quotes found in date range",
         count: 0,
-        quoteCatalogs: [] 
+        quoteCatalogs: [],
       });
     }
 
     const quoteIds = quotes.map((q) => q.ID);
 
-    // 2. Get cost centers linked to those quotes
+    // 5. Get cost centers linked to quotes
     const costCenters = await QuoteCostCenter.find({
       company: companyDoc._id,
-      "Quote.ID": { $in: quoteIds }
+      "Quote.ID": { $in: quoteIds },
     }).select("_id ID Name Quote");
 
     if (!costCenters.length) {
-      return res.status(200).json({ 
-        message: "No quote cost centers found", 
+      return res.status(200).json({
+        message: "No quote cost centers found",
         count: 0,
-        quoteCatalogs: [] 
+        quoteCatalogs: [],
       });
     }
 
     const costCenterIds = costCenters.map((cc) => cc._id);
 
-    // 3. Get catalog items linked to cost centers
-    let quoteCatalogQuery = QuoteCostCenterCatalog.find({
+    // 6. Build catalog criteria
+    const catalogCriteria = {
       company: companyDoc._id,
-      QuoteCostCenterID: { $in: costCenterIds }
-    })
-      .select("Catalog Quantity DisplayOrder QuoteCostCenterID")
+      QuoteCostCenterID: { $in: costCenterIds },
+    };
+
+    // 🔍 Add search by Catalog.Name or Catalog.ID
+    if (search) {
+      const searchCriteria = [
+        { "Catalog.Name": { $regex: search, $options: "i" } }, // case-insensitive name search
+      ];
+      if (!isNaN(search)) {
+        searchCriteria.push({ "Catalog.ID": Number(search) }); // numeric ID search
+      }
+      catalogCriteria.$or = searchCriteria;
+    }
+
+    // 7. Query with search + pagination
+    let quoteCatalogQuery = QuoteCostCenterCatalog.find(catalogCriteria)
+      .select("Catalog.ID Catalog.Name Quantity DisplayOrder QuoteCostCenterID")
       .populate({
         path: "QuoteCostCenterID",
-        select: "ID Name Quote"
+        select: "ID Name Quote",
       });
-    
+
     if (usePagination) {
       quoteCatalogQuery = quoteCatalogQuery.skip(skip).limit(limit);
     }
 
     const quoteCatalogs = await quoteCatalogQuery;
-    const quoteCatalogCount = await QuoteCostCenterCatalog.countDocuments({
-      company: companyDoc._id,
-      QuoteCostCenterID: { $in: costCenterIds }
-    });
 
-    // Build response object
+    // 8. Count with same filter
+    const quoteCatalogCount = await QuoteCostCenterCatalog.countDocuments(
+      catalogCriteria
+    );
+
+    // 9. Response
     const response = {
-      message: quoteCatalogCount === 0 ? "No quote catalogs found" : "Quote Catalogs List",
+      message:
+        quoteCatalogCount === 0
+          ? "No quote catalogs found"
+          : "Quote Catalogs List",
       count: quoteCatalogCount,
-      quoteCatalogs
+      quoteCatalogs,
     };
 
-    // Add pagination metadata if pagination is used
     if (usePagination) {
-      const totalPages = Math.ceil(quoteCatalogCount / Number(pageSize));
       response.pageNo = Number(page);
       response.pageSize = Number(pageSize);
-      response.totalPages = totalPages;
+      response.totalPages = Math.ceil(quoteCatalogCount / Number(pageSize));
     }
 
     res.status(200).json(response);
   } catch (err) {
-    console.error('Error in getQuoteCatalogs:', err);
+    console.error("Error in getQuoteCatalogs:", err);
     next(err);
   }
 };

@@ -1,7 +1,7 @@
-import Company from '../models/company.js';
-import Job from '../models/job.js';
-import JobCostCenter from '../models/jobCostCenter.js';
-import JobCostCenterCatalog from '../models/jobCostCenterCatalog.js';
+import Company from "../models/company.js";
+import Job from "../models/job.js";
+import JobCostCenter from "../models/jobCostCenter.js";
+import JobCostCenterCatalog from "../models/jobCostCenterCatalog.js";
 
 const getJobs = async (req, res, next) => {
   const companyID = req.query.companyID;
@@ -9,13 +9,13 @@ const getJobs = async (req, res, next) => {
   const endDate = req.query.endDate;
 
   if (!companyID) {
-    const error = new Error('Company ID is required');
+    const error = new Error("Company ID is required");
     error.statusCode = 400;
     throw error;
   }
 
   if (!startDate || !endDate) {
-    const error = new Error('Start date and end date are required');
+    const error = new Error("Start date and end date are required");
     error.statusCode = 400;
     throw error;
   }
@@ -25,21 +25,24 @@ const getJobs = async (req, res, next) => {
 
   try {
     const companyDoc = await Company.findOne({ ID: companyID });
-    const jobsArr = await Job.find({ company: companyDoc._id, DateIssued: { $gte: start, $lte: end} }).select(
-      '-_id -__v -company'
-    );
-    res.status(200).json({ message: 'Jobs List', jobs: jobsArr });
+    const jobsArr = await Job.find({
+      company: companyDoc._id,
+      DateIssued: { $gte: start, $lte: end },
+    }).select("-_id -__v -company");
+    res.status(200).json({ message: "Jobs List", jobs: jobsArr });
   } catch (err) {
     next(err);
   }
 };
 
 const getJobCatalogs = async (req, res, next) => {
-  const { companyID, startDate, endDate, page, pageSize } = req.query;
+  const { companyID, startDate, endDate, page, pageSize, search } = req.query;
 
   // Validate required query parameters
   if (!companyID || !startDate || !endDate) {
-    return res.status(400).json({ message: "companyID, startDate, and endDate are required" });
+    return res
+      .status(400)
+      .json({ message: "companyID, startDate, and endDate are required" });
   }
 
   try {
@@ -55,8 +58,14 @@ const getJobCatalogs = async (req, res, next) => {
     const end = new Date(endDate);
     end.setHours(23, 59, 59, 999);
 
-    // Determine if pagination should be applied
-    const usePagination = page && pageSize && !isNaN(Number(page)) && !isNaN(Number(pageSize)) && Number(page) >= 1 && Number(pageSize) >= 1;
+    // Pagination check
+    const usePagination =
+      page &&
+      pageSize &&
+      !isNaN(Number(page)) &&
+      !isNaN(Number(pageSize)) &&
+      Number(page) >= 1 &&
+      Number(pageSize) >= 1;
     const skip = usePagination ? (Number(page) - 1) * Number(pageSize) : 0;
     const limit = usePagination ? Number(pageSize) : 0;
 
@@ -64,68 +73,83 @@ const getJobCatalogs = async (req, res, next) => {
     const jobs = await Job.find({
       company: companyDoc._id,
       DateIssued: { $gte: start, $lte: end },
-      Stage: { $nin: ['Archived'] }
-    }).select('_id ID DateIssued Stage');
+      Stage: { $nin: ["Archived"] },
+    }).select("_id ID DateIssued Stage");
 
     if (!jobs.length) {
-      return res.status(200).json({ 
-        message: "No jobs found in date range with specified stages", 
+      return res.status(200).json({
+        message: "No jobs found in date range with specified stages",
         count: 0,
-        jobCatalogs: [] 
+        jobCatalogs: [],
       });
     }
 
-    const jobIds = jobs.map(j => j.ID);
+    const jobIds = jobs.map((j) => j.ID);
 
     // 2. Get job cost centers linked to those jobs
     const costCenters = await JobCostCenter.find({
       company: companyDoc._id,
-      'Job.ID': { $in: jobIds }
-    }).select('_id ID Name Job');
+      "Job.ID": { $in: jobIds },
+    }).select("_id ID Name Job");
 
     if (!costCenters.length) {
-      return res.status(200).json({ 
-        message: "No job cost centers found", 
+      return res.status(200).json({
+        message: "No job cost centers found",
         count: 0,
-        jobCatalogs: [] 
+        jobCatalogs: [],
       });
     }
 
-    const costCenterIds = costCenters.map(cc => cc._id);
+    const costCenterIds = costCenters.map((cc) => cc._id);
 
-    // 3. Get catalog items linked to cost centers
-    let jobCatalogQuery = JobCostCenterCatalog.find({
-      jobCostCenter: { $in: costCenterIds }
-    });
+    // 3. Build catalog query with optional search
+    const jobCatalogCriteria = {
+      jobCostCenter: { $in: costCenterIds },
+    };
+
+    // Add search if provided
+    if (search) {
+      const searchCriteria = [
+        { "Catalog.Name": { $regex: search, $options: "i" } }, // case-insensitive name search
+      ];
+
+      if (!isNaN(search)) {
+        searchCriteria.push({ "Catalog.ID": Number(search) }); // exact numeric match on catalog ID
+      }
+
+      jobCatalogCriteria.$or = searchCriteria;
+    }
+
+    // Query job catalogs
+    let jobCatalogQuery = JobCostCenterCatalog.find(jobCatalogCriteria);
     if (usePagination) {
       jobCatalogQuery = jobCatalogQuery.skip(skip).limit(limit);
     }
+
     const jobCatalogs = await jobCatalogQuery;
-    const jobCatalogCount = await JobCostCenterCatalog.countDocuments({
-      jobCostCenter: { $in: costCenterIds }
-    });
+    const jobCatalogCount = await JobCostCenterCatalog.countDocuments(
+      jobCatalogCriteria
+    );
 
     // Build response object
     const response = {
-      message: jobCatalogCount === 0 ? "No job catalogs found" : "Job Catalogs List",
+      message:
+        jobCatalogCount === 0 ? "No job catalogs found" : "Job Catalogs List",
       count: jobCatalogCount,
-      jobCatalogs
+      jobCatalogs,
     };
 
-    // Add pagination metadata if pagination is used
     if (usePagination) {
-      const totalPages = Math.ceil(jobCatalogCount / Number(pageSize));
       response.pageNo = Number(page);
       response.pageSize = Number(pageSize);
-      response.totalPages = totalPages;
+      response.totalPages = Math.ceil(jobCatalogCount / Number(pageSize));
     }
 
     res.status(200).json(response);
   } catch (err) {
-    console.error('Error in getJobCatalogs:', err);
+    console.error("Error in getJobCatalogs:", err);
     next(err);
   }
 };
-
 
 export { getJobs, getJobCatalogs };

@@ -56,7 +56,7 @@ const getPrebuilds = async (req, res, next) => {
 // };
 
 const getPrebuildCatalogs = async (req, res, next) => {
-  const { companyID, page, pageSize } = req.query;
+  const { companyID, page, pageSize, search } = req.query;
 
   // Validate required query parameters
   if (!companyID) {
@@ -70,7 +70,7 @@ const getPrebuildCatalogs = async (req, res, next) => {
       return res.status(404).json({ message: 'Company not found' });
     }
 
-    // Determine if pagination should be applied
+    // Pagination
     const usePagination = page && pageSize && !isNaN(Number(page)) && !isNaN(Number(pageSize)) && Number(page) >= 1 && Number(pageSize) >= 1;
     const skip = usePagination ? (Number(page) - 1) * Number(pageSize) : 0;
     const limit = usePagination ? Number(pageSize) : 0;
@@ -89,21 +89,33 @@ const getPrebuildCatalogs = async (req, res, next) => {
 
     const prebuildIds = prebuilds.map(p => p._id);
 
-    // Get catalog items linked to prebuilds
-    let prebuildCatalogQuery = PrebuildCatalog.find({
+    // Build base criteria
+    const prebuildCatalogCriteria = {
       company: companyDoc._id,
       prebuild: { $in: prebuildIds }
-    }).select('Catalog Quantity DisplayOrder prebuild');
+    };
+
+    // Add search if provided
+    if (search) {
+      const searchCriteria = [
+        { 'Catalog.Name': { $regex: search, $options: 'i' } }
+      ];
+      if (!isNaN(search)) {
+        searchCriteria.push({ 'Catalog.ID': Number(search) });
+      }
+      prebuildCatalogCriteria.$or = searchCriteria;
+    }
+
+    // Query prebuild catalogs
+    let prebuildCatalogQuery = PrebuildCatalog.find(prebuildCatalogCriteria)
+      .select('Catalog.ID Catalog.Name Quantity DisplayOrder prebuild');
 
     if (usePagination) {
       prebuildCatalogQuery = prebuildCatalogQuery.skip(skip).limit(limit);
     }
 
     const prebuildCatalogs = await prebuildCatalogQuery;
-    const prebuildCatalogCount = await PrebuildCatalog.countDocuments({
-      company: companyDoc._id,
-      prebuild: { $in: prebuildIds }
-    });
+    const prebuildCatalogCount = await PrebuildCatalog.countDocuments(prebuildCatalogCriteria);
 
     // Build response object
     const response = {
@@ -112,12 +124,10 @@ const getPrebuildCatalogs = async (req, res, next) => {
       prebuildCatalogs
     };
 
-    // Add pagination metadata if pagination is used
     if (usePagination) {
-      const totalPages = Math.ceil(prebuildCatalogCount / Number(pageSize));
       response.pageNo = Number(page);
       response.pageSize = Number(pageSize);
-      response.totalPages = totalPages;
+      response.totalPages = Math.ceil(prebuildCatalogCount / Number(pageSize));
     }
 
     res.status(200).json(response);
