@@ -475,68 +475,115 @@ const getUsageAnalysis = async (req, res, next) => {
   }
 };
 
+// const archiveAndGroupCleanup = async (req, res, next) => {
+//   const { companyID, catalogIDs } = req.body;
+
+//   if (!companyID || !Array.isArray(catalogIDs) || catalogIDs.length === 0) {
+//     return res.status(400).json({ message: "companyID and catalogIDs (non-empty array) are required" });
+//   }
+
+//   try {
+//     const company = await Company.findOne({ ID: companyID });
+//     if (!company) return res.status(404).json({ message: "Company not found" });
+
+//     // --- ARCHIVE CATALOG ITEMS ---
+//     const today = new Date();
+//     const yy = String(today.getFullYear()).slice(-2);
+//     const mm = String(today.getMonth() + 1).padStart(2, "0");
+//     const dd = String(today.getDate()).padStart(2, "0");
+//     const dateSuffix = `${yy}${mm}${dd}`;
+
+//     const result = await Catalog.updateMany(
+//       { company: company._id, ID: { $in: catalogIDs }, Archived: { $ne: true } },
+//       [
+//         {
+//           $set: {
+//             Archived: true,
+//             Name: { $concat: ["$Name", " (ARCHIVED)"] },
+//             Notes: {
+//               $cond: {
+//                 if: { $ifNull: ["$Notes", false] },
+//                 then: { $concat: ["$Notes", ` (ARCHIVED-${dateSuffix})`] },
+//                 else: `(ARCHIVED-${dateSuffix})`
+//               }
+//             }
+//           }
+//         }
+//       ]
+//     );
+
+//     // --- CLEANUP EMPTY GROUPS ---
+//     const groups = await CatalogGroup.find({ company: company._id });
+//     const emptyGroups = [];
+
+//     for (const group of groups) {
+//       const activeItems = await Catalog.find({ "Group.ID": group.ID, company: company._id, Archived: false });
+//       if (activeItems.length === 0) {
+//         emptyGroups.push(group.ID);
+//       }
+//     }
+
+//     if (emptyGroups.length > 0) {
+//       await CatalogGroup.deleteMany({ ID: { $in: emptyGroups }, company: company._id });
+//     }
+
+//     res.status(200).json({
+//       message: "Archiving and cleanup completed",
+//       archivedCount: result.modifiedCount,
+//       removedGroups: emptyGroups
+//     });
+
+//   } catch (err) {
+//     next(err);
+//   }
+// };
+
+// MOCK CONTROLLER – does not modify DB
 const archiveAndGroupCleanup = async (req, res, next) => {
   const { companyID, catalogIDs } = req.body;
 
   if (!companyID || !Array.isArray(catalogIDs) || catalogIDs.length === 0) {
-    return res.status(400).json({ message: "companyID and catalogIDs (non-empty array) are required" });
+    return res
+      .status(400)
+      .json({ message: "companyID and catalogIDs (non-empty array) are required" });
   }
 
   try {
-    const company = await Company.findOne({ ID: companyID });
-    if (!company) return res.status(404).json({ message: "Company not found" });
+    // --- pretend company exists ---
+    const companyExists = true;
+    if (!companyExists) {
+      return res.status(404).json({ message: "Company not found" });
+    }
 
-    // --- ARCHIVE CATALOG ITEMS ---
+    // --- build archive suffix ---
     const today = new Date();
     const yy = String(today.getFullYear()).slice(-2);
     const mm = String(today.getMonth() + 1).padStart(2, "0");
     const dd = String(today.getDate()).padStart(2, "0");
     const dateSuffix = `${yy}${mm}${dd}`;
 
-    const result = await Catalog.updateMany(
-      { company: company._id, ID: { $in: catalogIDs }, Archived: { $ne: true } },
-      [
-        {
-          $set: {
-            Archived: true,
-            Name: { $concat: ["$Name", " (ARCHIVED)"] },
-            Notes: {
-              $cond: {
-                if: { $ifNull: ["$Notes", false] },
-                then: { $concat: ["$Notes", ` (ARCHIVED-${dateSuffix})`] },
-                else: `(ARCHIVED-${dateSuffix})`
-              }
-            }
-          }
-        }
-      ]
-    );
+    // --- simulate catalog updates ---
+    const archivedItems = catalogIDs.map((id) => ({
+      ID: id,
+      Archived: true,
+      Name: `MockItem-${id} (ARCHIVED)`,
+      Notes: `(ARCHIVED-${dateSuffix})`
+    }));
 
-    // --- CLEANUP EMPTY GROUPS ---
-    const groups = await CatalogGroup.find({ company: company._id });
-    const emptyGroups = [];
+    // --- simulate cleanup ---
+    const removedGroups = ["mock-group-1", "mock-group-2"]; // dummy test values
 
-    for (const group of groups) {
-      const activeItems = await Catalog.find({ "Group.ID": group.ID, company: company._id, Archived: false });
-      if (activeItems.length === 0) {
-        emptyGroups.push(group.ID);
-      }
-    }
-
-    if (emptyGroups.length > 0) {
-      await CatalogGroup.deleteMany({ ID: { $in: emptyGroups }, company: company._id });
-    }
-
+    // --- response identical to real controller ---
     res.status(200).json({
-      message: "Archiving and cleanup completed",
-      archivedCount: result.modifiedCount,
-      removedGroups: emptyGroups
+      message: "Archiving and cleanup completed (MOCK)",
+      archivedCount: archivedItems.length,
+      removedGroups
     });
-
   } catch (err) {
     next(err);
   }
 };
+
 
 
 
