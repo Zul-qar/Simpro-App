@@ -547,13 +547,23 @@ const getUsageAnalysis = async (req, res, next) => {
 // };
 
 // MOCK CONTROLLER – does not modify DB
+// MOCK CONTROLLER – archive items by company + date range
 const archiveAndGroupCleanup = async (req, res, next) => {
-  const { companyID, catalogIDs } = req.body;
+  const { companyID, startDate, endDate } = req.body;
 
-  if (!companyID || !Array.isArray(catalogIDs) || catalogIDs.length === 0) {
-    return res
-      .status(400)
-      .json({ message: "companyID and catalogIDs (non-empty array) are required" });
+  // validate input
+  const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+  if (
+    !companyID ||
+    !startDate ||
+    !endDate ||
+    !dateRegex.test(startDate) ||
+    !dateRegex.test(endDate)
+  ) {
+    return res.status(400).json({
+      message:
+        "companyID, startDate (YYYY-MM-DD), and endDate (YYYY-MM-DD) are required"
+    });
   }
 
   try {
@@ -570,11 +580,17 @@ const archiveAndGroupCleanup = async (req, res, next) => {
     const dd = String(today.getDate()).padStart(2, "0");
     const dateSuffix = `${yy}${mm}${dd}`;
 
-    // --- simulate catalog updates ---
-    const archivedItems = catalogIDs.map((id) => ({
-      ID: id,
+    // --- simulate eligible items based on companyID + date range ---
+    // (in real API you’d query DB with createdAt or updatedAt filter)
+    const mockEligibleItems = [
+      { ID: "item-101", createdAt: startDate },
+      { ID: "item-102", createdAt: endDate }
+    ];
+
+    const archivedItems = mockEligibleItems.map((item) => ({
+      ID: item.ID,
       Archived: true,
-      Name: `MockItem-${id} (ARCHIVED)`,
+      Name: `MockItem-${item.ID} (ARCHIVED)`,
       Notes: `(ARCHIVED-${dateSuffix})`
     }));
 
@@ -585,13 +601,13 @@ const archiveAndGroupCleanup = async (req, res, next) => {
     res.status(200).json({
       message: "Archiving and cleanup completed (MOCK)",
       archivedCount: archivedItems.length,
-      removedGroups
+      removedGroups,
+      archivedItems
     });
   } catch (err) {
     next(err);
   }
 };
-
 
 
 
